@@ -1,0 +1,385 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Organizations (Payroll providers and Recordkeepers)
+model Organization {
+  id          String   @id @default(uuid()) @db.Uuid
+  name        String   @db.VarChar(255)
+  type        OrganizationType
+  status      Status   @default(ACTIVE)
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+  createdBy   String?  @map("created_by") @db.Uuid
+  updatedBy   String?  @map("updated_by") @db.Uuid
+  deletedAt   DateTime? @map("deleted_at")
+
+  // Relations
+  users        User[]
+  plans        Plan[]
+  integrations Integration[]
+  employees    Employee[]
+
+  @@map("organizations")
+}
+
+enum OrganizationType {
+  PAYROLL_PROVIDER
+  RECORDKEEPER
+}
+
+enum Status {
+  ACTIVE
+  INACTIVE
+  SUSPENDED
+}
+
+// Users for authentication
+model User {
+  id             String   @id @default(uuid()) @db.Uuid
+  email          String   @unique @db.VarChar(255)
+  passwordHash   String   @map("password_hash") @db.VarChar(255)
+  firstName      String   @map("first_name") @db.VarChar(100)
+  lastName       String   @map("last_name") @db.VarChar(100)
+  role           UserRole @default(USER)
+  status         Status   @default(ACTIVE)
+  organizationId String   @map("organization_id") @db.Uuid
+  lastLoginAt    DateTime? @map("last_login_at")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+  deletedAt      DateTime? @map("deleted_at")
+
+  // Relations
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  refreshTokens  RefreshToken[]
+  auditLogs      AuditLog[]
+
+  @@index([organizationId])
+  @@map("users")
+}
+
+enum UserRole {
+  ADMIN
+  USER
+  READONLY
+}
+
+// Refresh tokens for JWT rotation
+model RefreshToken {
+  id        String   @id @default(uuid()) @db.Uuid
+  token     String   @unique @db.VarChar(500)
+  userId    String   @map("user_id") @db.Uuid
+  expiresAt DateTime @map("expires_at")
+  createdAt DateTime @default(now()) @map("created_at")
+  revokedAt DateTime? @map("revoked_at")
+
+  // Relations
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([token])
+  @@map("refresh_tokens")
+}
+
+// 401(k) Plans
+model Plan {
+  id              String   @id @default(uuid()) @db.Uuid
+  name            String   @db.VarChar(255)
+  planNumber      String   @unique @map("plan_number") @db.VarChar(50)
+  organizationId  String   @map("organization_id") @db.Uuid
+  status          Status   @default(ACTIVE)
+  effectiveDate   DateTime @map("effective_date") @db.Date
+  terminationDate DateTime? @map("termination_date") @db.Date
+
+  // Plan limits (stored as cents)
+  employeeContributionLimit Int @map("employee_contribution_limit")
+  employerMatchLimit        Int? @map("employer_match_limit")
+  catchUpContributionLimit  Int? @map("catch_up_contribution_limit")
+
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+  createdBy   String?  @map("created_by") @db.Uuid
+  updatedBy   String?  @map("updated_by") @db.Uuid
+  deletedAt   DateTime? @map("deleted_at")
+
+  // Relations
+  organization  Organization @relation(fields: [organizationId], references: [id])
+  employees     Employee[]
+  contributions Contribution[]
+  loans         Loan[]
+
+  @@index([organizationId])
+  @@map("plans")
+}
+
+// Employees (Plan Participants) - PII fields encrypted at application level
+model Employee {
+  id              String   @id @default(uuid()) @db.Uuid
+  organizationId  String   @map("organization_id") @db.Uuid
+  planId          String   @map("plan_id") @db.Uuid
+  employeeNumber  String   @map("employee_number") @db.VarChar(50)
+
+  // Encrypted PII fields
+  ssnEncrypted    String   @map("ssn_encrypted") @db.VarChar(500)
+  firstNameEncrypted String @map("first_name_encrypted") @db.VarChar(500)
+  lastNameEncrypted  String @map("last_name_encrypted") @db.VarChar(500)
+  emailEncrypted     String? @map("email_encrypted") @db.VarChar(500)
+  dateOfBirthEncrypted String? @map("date_of_birth_encrypted") @db.VarChar(500)
+
+  hireDate        DateTime @map("hire_date") @db.Date
+  terminationDate DateTime? @map("termination_date") @db.Date
+  status          EmployeeStatus @default(ACTIVE)
+
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+  createdBy   String?  @map("created_by") @db.Uuid
+  updatedBy   String?  @map("updated_by") @db.Uuid
+  deletedAt   DateTime? @map("deleted_at")
+
+  // Relations
+  organization      Organization @relation(fields: [organizationId], references: [id])
+  plan              Plan @relation(fields: [planId], references: [id])
+  contributions     Contribution[]
+  deferralElections DeferralElection[]
+  loans             Loan[]
+
+  @@unique([organizationId, employeeNumber])
+  @@index([organizationId])
+  @@index([planId])
+  @@map("employees")
+}
+
+enum EmployeeStatus {
+  ACTIVE
+  TERMINATED
+  ON_LEAVE
+  SUSPENDED
+}
+
+// Contribution Records
+model Contribution {
+  id             String   @id @default(uuid()) @db.Uuid
+  employeeId     String   @map("employee_id") @db.Uuid
+  planId         String   @map("plan_id") @db.Uuid
+  payrollDate    DateTime @map("payroll_date") @db.Date
+
+  // Amounts in cents
+  employeePreTax    Int @map("employee_pre_tax")
+  employeeRoth      Int @default(0) @map("employee_roth")
+  employerMatch     Int @default(0) @map("employer_match")
+  employerNonMatch  Int @default(0) @map("employer_non_match")
+  loanRepayment     Int @default(0) @map("loan_repayment")
+
+  status          ContributionStatus @default(PENDING)
+  processedAt     DateTime? @map("processed_at")
+
+  // Idempotency
+  idempotencyKey  String? @unique @map("idempotency_key") @db.VarChar(255)
+
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+  createdBy   String?  @map("created_by") @db.Uuid
+  updatedBy   String?  @map("updated_by") @db.Uuid
+  deletedAt   DateTime? @map("deleted_at")
+
+  // Relations
+  employee Employee @relation(fields: [employeeId], references: [id])
+  plan     Plan @relation(fields: [planId], references: [id])
+
+  @@index([employeeId])
+  @@index([planId])
+  @@index([payrollDate])
+  @@index([status])
+  @@map("contributions")
+}
+
+enum ContributionStatus {
+  PENDING
+  VALIDATED
+  SUBMITTED
+  CONFIRMED
+  FAILED
+  CANCELLED
+}
+
+// Deferral Elections
+model DeferralElection {
+  id            String   @id @default(uuid()) @db.Uuid
+  employeeId    String   @map("employee_id") @db.Uuid
+
+  // Deferral percentages (stored as basis points, e.g., 600 = 6.00%)
+  preTaxPercent   Int @map("pre_tax_percent")
+  rothPercent     Int @default(0) @map("roth_percent")
+  catchUpPercent  Int @default(0) @map("catch_up_percent")
+
+  effectiveDate DateTime @map("effective_date") @db.Date
+  endDate       DateTime? @map("end_date") @db.Date
+  status        ElectionStatus @default(PENDING)
+
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+  createdBy   String?  @map("created_by") @db.Uuid
+  updatedBy   String?  @map("updated_by") @db.Uuid
+  deletedAt   DateTime? @map("deleted_at")
+
+  // Relations
+  employee Employee @relation(fields: [employeeId], references: [id])
+
+  @@index([employeeId])
+  @@index([effectiveDate])
+  @@map("deferral_elections")
+}
+
+enum ElectionStatus {
+  PENDING
+  ACTIVE
+  SUPERSEDED
+  CANCELLED
+}
+
+// Loan Records
+model Loan {
+  id              String   @id @default(uuid()) @db.Uuid
+  employeeId      String   @map("employee_id") @db.Uuid
+  planId          String   @map("plan_id") @db.Uuid
+
+  // Amounts in cents
+  originalAmount  Int      @map("original_amount")
+  currentBalance  Int      @map("current_balance")
+  paymentAmount   Int      @map("payment_amount")
+
+  interestRate    Int      @map("interest_rate") // Basis points
+  originationDate DateTime @map("origination_date") @db.Date
+  maturityDate    DateTime @map("maturity_date") @db.Date
+
+  status          LoanStatus @default(ACTIVE)
+
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+  createdBy   String?  @map("created_by") @db.Uuid
+  updatedBy   String?  @map("updated_by") @db.Uuid
+  deletedAt   DateTime? @map("deleted_at")
+
+  // Relations
+  employee Employee @relation(fields: [employeeId], references: [id])
+  plan     Plan @relation(fields: [planId], references: [id])
+
+  @@index([employeeId])
+  @@index([planId])
+  @@map("loans")
+}
+
+enum LoanStatus {
+  ACTIVE
+  PAID_OFF
+  DEFAULTED
+  CANCELLED
+}
+
+// Integration Configurations (credentials encrypted at application level)
+model Integration {
+  id              String   @id @default(uuid()) @db.Uuid
+  organizationId  String   @map("organization_id") @db.Uuid
+  name            String   @db.VarChar(255)
+  type            IntegrationType
+
+  // Encrypted configuration
+  configEncrypted String   @map("config_encrypted") @db.Text
+
+  status          IntegrationStatus @default(INACTIVE)
+  lastSyncAt      DateTime? @map("last_sync_at")
+  lastSyncStatus  String?   @map("last_sync_status") @db.VarChar(50)
+
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+  createdBy   String?  @map("created_by") @db.Uuid
+  updatedBy   String?  @map("updated_by") @db.Uuid
+  deletedAt   DateTime? @map("deleted_at")
+
+  // Relations
+  organization Organization @relation(fields: [organizationId], references: [id])
+  fileUploads  FileUpload[]
+
+  @@index([organizationId])
+  @@map("integrations")
+}
+
+enum IntegrationType {
+  SFTP
+  REST_API
+  SOAP
+  WEBHOOK
+}
+
+enum IntegrationStatus {
+  ACTIVE
+  INACTIVE
+  ERROR
+}
+
+// File Upload Tracking
+model FileUpload {
+  id            String   @id @default(uuid()) @db.Uuid
+  integrationId String   @map("integration_id") @db.Uuid
+  fileName      String   @map("file_name") @db.VarChar(255)
+  fileSize      Int      @map("file_size")
+  fileType      String   @map("file_type") @db.VarChar(50)
+
+  status        FileUploadStatus @default(PENDING)
+  recordCount   Int?     @map("record_count")
+  errorCount    Int?     @map("error_count")
+  errorDetails  String?  @map("error_details") @db.Text
+
+  processedAt   DateTime? @map("processed_at")
+
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+  createdBy   String?  @map("created_by") @db.Uuid
+
+  // Relations
+  integration Integration @relation(fields: [integrationId], references: [id])
+
+  @@index([integrationId])
+  @@index([status])
+  @@map("file_uploads")
+}
+
+enum FileUploadStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+  CANCELLED
+}
+
+// Audit Logs
+model AuditLog {
+  id          String   @id @default(uuid()) @db.Uuid
+  userId      String?  @map("user_id") @db.Uuid
+  action      String   @db.VarChar(100)
+  entityType  String   @map("entity_type") @db.VarChar(100)
+  entityId    String?  @map("entity_id") @db.Uuid
+
+  // Store old and new values for data changes
+  oldValues   Json?    @map("old_values")
+  newValues   Json?    @map("new_values")
+
+  ipAddress   String?  @map("ip_address") @db.VarChar(45)
+  userAgent   String?  @map("user_agent") @db.VarChar(500)
+  requestId   String?  @map("request_id") @db.VarChar(100)
+
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  // Relations
+  user User? @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([entityType, entityId])
+  @@index([createdAt])
+  @@map("audit_logs")
+}
