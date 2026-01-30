@@ -1,4 +1,12 @@
 import { describe, it, expect } from '@jest/globals';
+
+// Mock config before importing encryption module
+jest.mock('../../src/config/index', () => ({
+  config: {
+    encryption: { key: 'test-encryption-key-32-chars-xx!' },
+  },
+}));
+
 import { encrypt, decrypt, hashSensitiveData } from '../../src/utils/encryption.js';
 
 describe('Encryption Utilities', () => {
