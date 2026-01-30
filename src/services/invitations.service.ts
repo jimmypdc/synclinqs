@@ -2,6 +2,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { prisma } from '../lib/prisma.js';
 import { createError } from '../api/middleware/errorHandler.js';
 import { AuditService } from './audit.service.js';
+import { EmailService } from './email.service.js';
 import { logger } from '../utils/logger.js';
 
 interface CreateInvitationData {
@@ -11,6 +12,7 @@ interface CreateInvitationData {
 
 export class InvitationsService {
   private auditService = new AuditService();
+  private emailService = new EmailService();
 
   async create(data: CreateInvitationData, organizationId: string, invitedBy: string) {
     // Check if email is already a user in this organization
@@ -77,8 +79,16 @@ export class InvitationsService {
       organizationId,
     });
 
-    // In production, you would send an email here
-    // For now, return the token (in real app, this would only be sent via email)
+    // Send invitation email
+    await this.emailService.sendInvitation({
+      recipientEmail: data.email,
+      inviterName: `${invitation.inviter.firstName} ${invitation.inviter.lastName}`,
+      organizationName: invitation.organization.name,
+      role: invitation.role,
+      inviteToken: invitation.token,
+      expiresAt: invitation.expiresAt,
+    });
+
     return {
       id: invitation.id,
       email: invitation.email,

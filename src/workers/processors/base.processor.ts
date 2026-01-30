@@ -2,6 +2,7 @@ import { Job } from 'bullmq';
 import { prisma } from '../../lib/prisma.js';
 import { decrypt } from '../../utils/encryption.js';
 import { AuditService } from '../../services/audit.service.js';
+import { EmailService } from '../../services/email.service.js';
 import { logger } from '../../utils/logger.js';
 import { SyncJobData, SyncJobResult, IntegrationConfig, IntegrationType } from '../types.js';
 
@@ -18,6 +19,7 @@ export interface TypeProcessor {
 }
 
 const auditService = new AuditService();
+const emailService = new EmailService();
 
 export async function processJob(
   job: Job<SyncJobData, SyncJobResult>,
@@ -114,6 +116,27 @@ export async function processJob(
       recordsProcessed: result.recordsProcessed,
     });
 
+    // Send success notification email
+    const triggerUser = await prisma.user.findUnique({
+      where: { id: triggeredBy },
+      select: { email: true },
+    });
+    if (triggerUser) {
+      const integrationForEmail = await prisma.integration.findUnique({
+        where: { id: integrationId },
+        select: { name: true },
+      });
+      await emailService.sendSyncNotification({
+        recipientEmail: triggerUser.email,
+        integrationName: integrationForEmail?.name ?? 'Unknown Integration',
+        status: 'completed',
+        syncedAt: now,
+        recordsProcessed: result.recordsProcessed,
+      }).catch((emailError) => {
+        logger.error('Failed to send sync notification email', { error: String(emailError) });
+      });
+    }
+
     return {
       success: true,
       integrationId,
@@ -146,6 +169,7 @@ export async function processJob(
       });
 
     // Log sync failed
+    const willRetry = job.attemptsMade < (job.opts.attempts ?? 1) - 1;
     await auditService.log({
       userId: triggeredBy,
       action: 'SYNC_FAILED',
@@ -155,9 +179,32 @@ export async function processJob(
         jobId: job.id,
         error: errorMessage,
         attempt: job.attemptsMade + 1,
-        willRetry: job.attemptsMade < (job.opts.attempts ?? 1) - 1,
+        willRetry,
       },
     });
+
+    // Send failure notification email only on final failure (no more retries)
+    if (!willRetry) {
+      const triggerUser = await prisma.user.findUnique({
+        where: { id: triggeredBy },
+        select: { email: true },
+      });
+      if (triggerUser) {
+        const integrationForEmail = await prisma.integration.findUnique({
+          where: { id: integrationId },
+          select: { name: true },
+        });
+        await emailService.sendSyncNotification({
+          recipientEmail: triggerUser.email,
+          integrationName: integrationForEmail?.name ?? 'Unknown Integration',
+          status: 'failed',
+          syncedAt: new Date(),
+          errorMessage,
+        }).catch((emailError) => {
+          logger.error('Failed to send sync failure notification email', { error: String(emailError) });
+        });
+      }
+    }
 
     // Re-throw to trigger BullMQ retry logic
     throw error;
