@@ -142,6 +142,8 @@ export const integrationsApi = {
     status?: 'ACTIVE' | 'INACTIVE' | 'ERROR';
   }) => api.patch(`/integrations/${id}`, data),
   triggerSync: (integrationId?: string) => api.post('/integrations/sync', { integrationId }),
+  getLogs: (integrationId: string, params?: { limit?: number }) =>
+    api.get(`/dashboard/audit-logs`, { params: { entityId: integrationId, entityType: 'Integration', ...params } }),
 };
 
 // Invitations API

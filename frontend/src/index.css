@@ -270,3 +270,99 @@ td {
 tr:hover td {
   background: var(--bg-surface);
 }
+
+/* Loading screen */
+.loading-screen {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  gap: var(--space-md);
+  color: var(--text-secondary);
+}
+
+.loading-spinner {
+  width: 40px;
+  height: 40px;
+  border: 3px solid var(--border-default);
+  border-top-color: var(--accent-primary);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ===== LIGHT THEME ===== */
+[data-theme="light"] {
+  /* Core palette */
+  --bg-base: #F8FAFC;
+  --bg-surface: #FFFFFF;
+  --bg-elevated: #F1F5F9;
+  --bg-hover: #E2E8F0;
+
+  /* Accent colors - slightly adjusted for light mode */
+  --accent-primary: #0891B2;
+  --accent-primary-dim: rgba(8, 145, 178, 0.12);
+  --accent-success: #059669;
+  --accent-success-dim: rgba(5, 150, 105, 0.12);
+  --accent-warning: #D97706;
+  --accent-warning-dim: rgba(217, 119, 6, 0.12);
+  --accent-error: #DC2626;
+  --accent-error-dim: rgba(220, 38, 38, 0.12);
+
+  /* Text */
+  --text-primary: #0F172A;
+  --text-secondary: #475569;
+  --text-muted: #94A3B8;
+
+  /* Borders */
+  --border-subtle: rgba(0, 0, 0, 0.06);
+  --border-default: rgba(0, 0, 0, 0.1);
+  --border-color: rgba(0, 0, 0, 0.1);
+
+  /* Shadows - lighter for light mode */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.08);
+  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.12);
+  --shadow-glow: 0 0 20px rgba(8, 145, 178, 0.2);
+
+  /* Additional tokens for components */
+  --color-success: #059669;
+  --color-warning: #D97706;
+  --color-error: #DC2626;
+}
+
+/* Dark theme explicit (already default, but for specificity) */
+[data-theme="dark"], :root {
+  --color-success: #10B981;
+  --color-warning: #F59E0B;
+  --color-error: #EF4444;
+  --border-color: rgba(255, 255, 255, 0.1);
+}
+
+/* Light mode scrollbar */
+[data-theme="light"] ::-webkit-scrollbar-track {
+  background: var(--bg-base);
+}
+
+[data-theme="light"] ::-webkit-scrollbar-thumb {
+  background: #CBD5E1;
+}
+
+[data-theme="light"] ::-webkit-scrollbar-thumb:hover {
+  background: #94A3B8;
+}
+
+/* Light mode selection */
+[data-theme="light"] ::selection {
+  background: var(--accent-primary);
+  color: white;
+}
+
+/* Light mode noise overlay - reduce opacity */
+[data-theme="light"] .noise-overlay {
+  opacity: 0.015;
+}

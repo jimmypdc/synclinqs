@@ -9,8 +9,11 @@ import {
   ChevronRight,
   User,
   ChevronRightIcon,
+  Download,
 } from 'lucide-react';
 import { employeesApi } from '../lib/api';
+import { exportEmployees } from '../utils/export';
+import { useToast } from '../contexts/ToastContext';
 import styles from './Employees.module.css';
 
 interface Employee {
@@ -26,9 +29,19 @@ interface Employee {
 
 export function Employees() {
   const navigate = useNavigate();
+  const toast = useToast();
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
   const limit = 10;
+
+  const handleExport = () => {
+    if (employees.length === 0) {
+      toast.warning('No employees to export');
+      return;
+    }
+    exportEmployees(employees);
+    toast.success(`Exported ${employees.length} employees to CSV`);
+  };
 
   const { data, isLoading } = useQuery({
     queryKey: ['employees', page, search],
@@ -65,10 +78,16 @@ export function Employees() {
             Manage plan participants and their information
           </p>
         </div>
-        <button className={styles.addBtn}>
-          <Plus size={18} />
-          Add Employee
-        </button>
+        <div className={styles.headerActions}>
+          <button className={styles.exportBtn} onClick={handleExport}>
+            <Download size={18} />
+            Export CSV
+          </button>
+          <button className={styles.addBtn}>
+            <Plus size={18} />
+            Add Employee
+          </button>
+        </div>
       </div>
 
       {/* Search and filters */}

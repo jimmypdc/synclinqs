@@ -20,6 +20,30 @@
   font-size: 0.9375rem;
 }
 
+.headerActions {
+  display: flex;
+  gap: var(--space-sm);
+}
+
+.exportBtn {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: var(--space-md) var(--space-lg);
+  background: var(--bg-elevated);
+  color: var(--text-primary);
+  font-weight: 500;
+  font-size: 0.875rem;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-default);
+  transition: all 0.2s;
+}
+
+.exportBtn:hover {
+  background: var(--bg-hover);
+  border-color: var(--text-muted);
+}
+
 .uploadBtn {
   display: flex;
   align-items: center;

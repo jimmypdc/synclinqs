@@ -8,10 +8,13 @@ import {
   ChevronLeft,
   ChevronRight,
   Filter,
+  Download,
 } from 'lucide-react';
 import { contributionsApi } from '../lib/api';
 import { ContributionModal } from '../components/ContributionModal';
 import { FileUploadModal } from '../components/FileUploadModal';
+import { exportContributions } from '../utils/export';
+import { useToast } from '../contexts/ToastContext';
 import styles from './Contributions.module.css';
 
 interface Contribution {
@@ -38,11 +41,21 @@ function formatCurrency(cents: number): string {
 }
 
 export function Contributions() {
+  const toast = useToast();
   const [page, setPage] = useState(1);
   const [status, setStatus] = useState('');
   const [selectedContribution, setSelectedContribution] = useState<Contribution | null>(null);
   const [showUploadModal, setShowUploadModal] = useState(false);
   const limit = 15;
+
+  const handleExport = () => {
+    if (contributions.length === 0) {
+      toast.warning('No contributions to export');
+      return;
+    }
+    exportContributions(contributions);
+    toast.success(`Exported ${contributions.length} contributions to CSV`);
+  };
 
   const { data, isLoading } = useQuery({
     queryKey: ['contributions', page, status],
@@ -85,10 +98,16 @@ export function Contributions() {
             Track and manage 401(k) contribution records
           </p>
         </div>
-        <button className={styles.uploadBtn} onClick={() => setShowUploadModal(true)}>
-          <Upload size={18} />
-          Upload CSV
-        </button>
+        <div className={styles.headerActions}>
+          <button className={styles.exportBtn} onClick={handleExport}>
+            <Download size={18} />
+            Export CSV
+          </button>
+          <button className={styles.uploadBtn} onClick={() => setShowUploadModal(true)}>
+            <Upload size={18} />
+            Upload CSV
+          </button>
+        </div>
       </div>
 
       {/* Toolbar */}

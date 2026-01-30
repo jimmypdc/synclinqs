@@ -13,6 +13,8 @@ import {
 } from 'lucide-react';
 import { integrationsApi } from '../lib/api';
 import { IntegrationModal } from '../components/IntegrationModal';
+import { IntegrationLogsModal } from '../components/IntegrationLogsModal';
+import { useToast } from '../contexts/ToastContext';
 import styles from './Integrations.module.css';
 
 interface Integration {
@@ -51,8 +53,10 @@ function formatTime(dateString: string | null): string {
 
 export function Integrations() {
   const queryClient = useQueryClient();
+  const toast = useToast();
   const [showModal, setShowModal] = useState(false);
   const [selectedIntegration, setSelectedIntegration] = useState<Integration | null>(null);
+  const [logsIntegration, setLogsIntegration] = useState<Integration | null>(null);
 
   const { data: integrations, isLoading } = useQuery({
     queryKey: ['integrations'],
@@ -63,6 +67,10 @@ export function Integrations() {
     mutationFn: () => integrationsApi.triggerSync(),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['integrations'] });
+      toast.success('Sync started for all integrations');
+    },
+    onError: () => {
+      toast.error('Failed to start sync');
     },
   });
 
@@ -189,14 +197,22 @@ export function Integrations() {
                 <div className={styles.cardFooter}>
                   <button
                     className={styles.actionBtn}
-                    onClick={() => integrationsApi.triggerSync(integration.id).then(() => {
-                      queryClient.invalidateQueries({ queryKey: ['integrations'] });
-                    })}
+                    onClick={() => {
+                      integrationsApi.triggerSync(integration.id).then(() => {
+                        queryClient.invalidateQueries({ queryKey: ['integrations'] });
+                        toast.success(`Sync started for ${integration.name}`);
+                      }).catch(() => {
+                        toast.error(`Failed to start sync for ${integration.name}`);
+                      });
+                    }}
                   >
                     <RefreshCw size={14} />
                     Sync Now
                   </button>
-                  <button className={styles.actionBtnSecondary}>
+                  <button
+                    className={styles.actionBtnSecondary}
+                    onClick={() => setLogsIntegration(integration)}
+                  >
                     View Logs
                   </button>
                 </div>
@@ -232,6 +248,14 @@ export function Integrations() {
             setShowModal(false);
             setSelectedIntegration(null);
           }}
+        />
+      )}
+
+      {/* Logs Modal */}
+      {logsIntegration && (
+        <IntegrationLogsModal
+          integration={logsIntegration}
+          onClose={() => setLogsIntegration(null)}
         />
       )}
     </motion.div>
