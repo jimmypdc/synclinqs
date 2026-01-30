@@ -27,6 +27,19 @@ const refreshSchema = z.object({
   refreshToken: z.string(),
 });
 
+const registerWithInviteSchema = z.object({
+  inviteToken: z.string().min(1),
+  password: z
+    .string()
+    .min(8)
+    .regex(
+      /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]/,
+      'Password must contain uppercase, lowercase, number, and special character'
+    ),
+  firstName: z.string().min(1).max(100),
+  lastName: z.string().min(1).max(100),
+});
+
 export class AuthController {
   private authService = new AuthService();
 
@@ -78,6 +91,16 @@ export class AuthController {
       }
       const user = await this.authService.getProfile(req.user.userId);
       res.json(user);
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  registerWithInvitation = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const data = registerWithInviteSchema.parse(req.body);
+      const result = await this.authService.registerWithInvitation(data);
+      res.status(201).json(result);
     } catch (error) {
       next(error);
     }

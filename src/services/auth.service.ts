@@ -16,6 +16,13 @@ interface RegisterData {
   organizationType: 'PAYROLL_PROVIDER' | 'RECORDKEEPER';
 }
 
+interface RegisterWithInviteData {
+  inviteToken: string;
+  password: string;
+  firstName: string;
+  lastName: string;
+}
+
 export class AuthService {
   private auditService = new AuditService();
 
@@ -283,5 +290,131 @@ export class AuthService {
 
   async hashPassword(password: string): Promise<string> {
     return bcrypt.hash(password, 12);
+  }
+
+  async registerWithInvitation(data: RegisterWithInviteData): Promise<{
+    user: {
+      id: string;
+      email: string;
+      firstName: string;
+      lastName: string;
+      role: string;
+    };
+    organization: {
+      id: string;
+      name: string;
+      type: string;
+    };
+    accessToken: string;
+    refreshToken: string;
+    expiresIn: string;
+  }> {
+    // Find and validate the invitation
+    const invitation = await prisma.invitation.findUnique({
+      where: { token: data.inviteToken },
+      include: { organization: true },
+    });
+
+    if (!invitation) {
+      throw createError('Invalid invitation token', 404, 'INVITATION_NOT_FOUND');
+    }
+
+    if (invitation.acceptedAt) {
+      throw createError('Invitation has already been accepted', 400, 'INVITATION_ALREADY_ACCEPTED');
+    }
+
+    if (invitation.expiresAt < new Date()) {
+      throw createError('Invitation has expired', 400, 'INVITATION_EXPIRED');
+    }
+
+    // Check if email already exists
+    const existingUser = await prisma.user.findUnique({
+      where: { email: invitation.email },
+    });
+
+    if (existingUser) {
+      throw createError('Email already registered', 409, 'EMAIL_EXISTS');
+    }
+
+    // Create user and mark invitation as accepted in a transaction
+    const result = await prisma.$transaction(async (tx) => {
+      // Hash password
+      const passwordHash = await bcrypt.hash(data.password, 12);
+
+      // Create user with the invitation's email, role, and organization
+      const user = await tx.user.create({
+        data: {
+          email: invitation.email,
+          passwordHash,
+          firstName: data.firstName,
+          lastName: data.lastName,
+          role: invitation.role,
+          status: 'ACTIVE',
+          organizationId: invitation.organizationId,
+        },
+      });
+
+      // Mark invitation as accepted
+      await tx.invitation.update({
+        where: { id: invitation.id },
+        data: { acceptedAt: new Date() },
+      });
+
+      return { user, organization: invitation.organization };
+    });
+
+    // Generate tokens
+    const payload: JwtPayload = {
+      userId: result.user.id,
+      email: result.user.email,
+      role: result.user.role,
+      organizationId: result.organization.id,
+    };
+
+    const accessToken = jwt.sign(payload, config.jwt.secret, {
+      expiresIn: config.jwt.expiresIn,
+    });
+
+    const refreshToken = uuidv4();
+    const refreshExpiresAt = new Date();
+    refreshExpiresAt.setDate(refreshExpiresAt.getDate() + 7);
+
+    await prisma.refreshToken.create({
+      data: {
+        token: refreshToken,
+        userId: result.user.id,
+        expiresAt: refreshExpiresAt,
+      },
+    });
+
+    await this.auditService.log({
+      userId: result.user.id,
+      action: 'REGISTER_WITH_INVITATION',
+      entityType: 'User',
+      entityId: result.user.id,
+      newValues: {
+        email: invitation.email,
+        organizationId: invitation.organizationId,
+        invitationId: invitation.id,
+      },
+    });
+
+    return {
+      user: {
+        id: result.user.id,
+        email: result.user.email,
+        firstName: result.user.firstName,
+        lastName: result.user.lastName,
+        role: result.user.role,
+      },
+      organization: {
+        id: result.organization.id,
+        name: result.organization.name,
+        type: result.organization.type,
+      },
+      accessToken,
+      refreshToken,
+      expiresIn: config.jwt.expiresIn,
+    };
   }
 }

@@ -6,6 +6,7 @@ export const authRouter = Router();
 const controller = new AuthController();
 
 authRouter.post('/register', controller.register);
+authRouter.post('/register/invite', controller.registerWithInvitation);
 authRouter.post('/login', controller.login);
 authRouter.post('/refresh', controller.refresh);
 authRouter.post('/logout', authenticate, controller.logout);

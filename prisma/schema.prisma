@@ -24,6 +24,7 @@ model Organization {
   plans        Plan[]
   integrations Integration[]
   employees    Employee[]
+  invitations  Invitation[]
 
   @@map("organizations")
 }
@@ -58,6 +59,7 @@ model User {
   organization   Organization @relation(fields: [organizationId], references: [id])
   refreshTokens  RefreshToken[]
   auditLogs      AuditLog[]
+  sentInvitations Invitation[]
 
   @@index([organizationId])
   @@map("users")
@@ -84,6 +86,28 @@ model RefreshToken {
   @@index([userId])
   @@index([token])
   @@map("refresh_tokens")
+}
+
+// Organization Invitations
+model Invitation {
+  id             String   @id @default(uuid()) @db.Uuid
+  email          String   @db.VarChar(255)
+  organizationId String   @map("organization_id") @db.Uuid
+  role           UserRole @default(USER)
+  token          String   @unique @db.VarChar(100)
+  expiresAt      DateTime @map("expires_at")
+  acceptedAt     DateTime? @map("accepted_at")
+  invitedBy      String   @map("invited_by") @db.Uuid
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  // Relations
+  organization Organization @relation(fields: [organizationId], references: [id])
+  inviter      User @relation(fields: [invitedBy], references: [id])
+
+  @@index([email])
+  @@index([token])
+  @@index([organizationId])
+  @@map("invitations")
 }
 
 // 401(k) Plans
