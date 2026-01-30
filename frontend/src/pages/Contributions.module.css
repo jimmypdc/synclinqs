@@ -313,3 +313,13 @@
   font-size: 0.875rem;
   color: var(--text-secondary);
 }
+
+/* Clickable rows */
+.clickableRow {
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.clickableRow:hover td {
+  background: var(--bg-elevated);
+}

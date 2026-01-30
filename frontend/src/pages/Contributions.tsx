@@ -10,6 +10,8 @@ import {
   Filter,
 } from 'lucide-react';
 import { contributionsApi } from '../lib/api';
+import { ContributionModal } from '../components/ContributionModal';
+import { FileUploadModal } from '../components/FileUploadModal';
 import styles from './Contributions.module.css';
 
 interface Contribution {
@@ -38,6 +40,8 @@ function formatCurrency(cents: number): string {
 export function Contributions() {
   const [page, setPage] = useState(1);
   const [status, setStatus] = useState('');
+  const [selectedContribution, setSelectedContribution] = useState<Contribution | null>(null);
+  const [showUploadModal, setShowUploadModal] = useState(false);
   const limit = 15;
 
   const { data, isLoading } = useQuery({
@@ -81,7 +85,7 @@ export function Contributions() {
             Track and manage 401(k) contribution records
           </p>
         </div>
-        <button className={styles.uploadBtn}>
+        <button className={styles.uploadBtn} onClick={() => setShowUploadModal(true)}>
           <Upload size={18} />
           Upload CSV
         </button>
@@ -156,6 +160,8 @@ export function Contributions() {
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: index * 0.03 }}
+                  onClick={() => setSelectedContribution(contribution)}
+                  className={styles.clickableRow}
                 >
                   <td>
                     <span className={styles.date}>
@@ -251,6 +257,19 @@ export function Contributions() {
             </button>
           </div>
         </div>
+      )}
+
+      {/* Contribution Detail Modal */}
+      {selectedContribution && (
+        <ContributionModal
+          contribution={selectedContribution}
+          onClose={() => setSelectedContribution(null)}
+        />
+      )}
+
+      {/* File Upload Modal */}
+      {showUploadModal && (
+        <FileUploadModal onClose={() => setShowUploadModal(false)} />
       )}
     </motion.div>
   );

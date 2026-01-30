@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
 import {
@@ -8,8 +9,10 @@ import {
   Globe,
   FileText,
   Webhook,
+  Plus,
 } from 'lucide-react';
 import { integrationsApi } from '../lib/api';
+import { IntegrationModal } from '../components/IntegrationModal';
 import styles from './Integrations.module.css';
 
 interface Integration {
@@ -48,6 +51,8 @@ function formatTime(dateString: string | null): string {
 
 export function Integrations() {
   const queryClient = useQueryClient();
+  const [showModal, setShowModal] = useState(false);
+  const [selectedIntegration, setSelectedIntegration] = useState<Integration | null>(null);
 
   const { data: integrations, isLoading } = useQuery({
     queryKey: ['integrations'],
@@ -149,7 +154,10 @@ export function Integrations() {
                     <h3 className={styles.cardName}>{integration.name}</h3>
                     <span className={styles.cardType}>{integration.type.replace('_', ' ')}</span>
                   </div>
-                  <button className={styles.settingsBtn}>
+                  <button
+                    className={styles.settingsBtn}
+                    onClick={() => setSelectedIntegration(integration)}
+                  >
                     <Settings size={16} />
                   </button>
                 </div>
@@ -179,7 +187,12 @@ export function Integrations() {
                 </div>
 
                 <div className={styles.cardFooter}>
-                  <button className={styles.actionBtn}>
+                  <button
+                    className={styles.actionBtn}
+                    onClick={() => integrationsApi.triggerSync(integration.id).then(() => {
+                      queryClient.invalidateQueries({ queryKey: ['integrations'] });
+                    })}
+                  >
                     <RefreshCw size={14} />
                     Sync Now
                   </button>
@@ -205,8 +218,22 @@ export function Integrations() {
           <h3>Add New Integration</h3>
           <p>Connect to SFTP, REST API, SOAP, or Webhook endpoints</p>
         </div>
-        <button className={styles.addBtn}>Configure</button>
+        <button className={styles.addBtn} onClick={() => setShowModal(true)}>
+          <Plus size={18} />
+          Configure
+        </button>
       </motion.div>
+
+      {/* Integration Modal */}
+      {(showModal || selectedIntegration) && (
+        <IntegrationModal
+          integration={selectedIntegration}
+          onClose={() => {
+            setShowModal(false);
+            setSelectedIntegration(null);
+          }}
+        />
+      )}
     </motion.div>
   );
 }

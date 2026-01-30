@@ -3,8 +3,10 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { Layout } from './components/Layout';
 import { Login } from './pages/Login';
+import { Register } from './pages/Register';
 import { Dashboard } from './pages/Dashboard';
 import { Employees } from './pages/Employees';
+import { EmployeeDetail } from './pages/EmployeeDetail';
 import { Contributions } from './pages/Contributions';
 import { Integrations } from './pages/Integrations';
 import { Settings } from './pages/Settings';
@@ -68,6 +70,14 @@ function AppRoutes() {
         }
       />
       <Route
+        path="/register"
+        element={
+          <PublicRoute>
+            <Register />
+          </PublicRoute>
+        }
+      />
+      <Route
         path="/"
         element={
           <PrivateRoute>
@@ -77,6 +87,7 @@ function AppRoutes() {
       >
         <Route index element={<Dashboard />} />
         <Route path="employees" element={<Employees />} />
+        <Route path="employees/:id" element={<EmployeeDetail />} />
         <Route path="contributions" element={<Contributions />} />
         <Route path="integrations" element={<Integrations />} />
         <Route path="settings" element={<Settings />} />

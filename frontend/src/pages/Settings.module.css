@@ -156,8 +156,45 @@
   transition: all 0.2s;
 }
 
-.saveBtn:hover {
+.saveBtn:hover:not(:disabled) {
   box-shadow: var(--shadow-glow);
+}
+
+.saveBtn:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+/* Messages */
+.successMessage {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: var(--space-md);
+  background: var(--accent-success-dim);
+  border: 1px solid var(--accent-success);
+  border-radius: var(--radius-md);
+  color: var(--accent-success);
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.errorMessage {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: var(--space-md);
+  background: var(--accent-error-dim);
+  border: 1px solid var(--accent-error);
+  border-radius: var(--radius-md);
+  color: var(--accent-error);
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.hint {
+  font-size: 0.75rem;
+  color: var(--text-muted);
 }
 
 /* Copy field */

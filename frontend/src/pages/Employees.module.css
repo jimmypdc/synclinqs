@@ -307,3 +307,23 @@
   color: var(--text-muted);
   padding: 0 var(--space-xs);
 }
+
+/* Clickable rows */
+.clickableRow {
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.clickableRow:hover td {
+  background: var(--bg-elevated);
+}
+
+.rowChevron {
+  color: var(--text-muted);
+  transition: all 0.2s;
+}
+
+.clickableRow:hover .rowChevron {
+  color: var(--accent-primary);
+  transform: translateX(2px);
+}

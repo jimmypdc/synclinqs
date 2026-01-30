@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
 import {
@@ -7,7 +8,7 @@ import {
   ChevronLeft,
   ChevronRight,
   User,
-  MoreVertical,
+  ChevronRightIcon,
 } from 'lucide-react';
 import { employeesApi } from '../lib/api';
 import styles from './Employees.module.css';
@@ -24,6 +25,7 @@ interface Employee {
 }
 
 export function Employees() {
+  const navigate = useNavigate();
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
   const limit = 10;
@@ -132,6 +134,8 @@ export function Employees() {
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: index * 0.05 }}
+                  onClick={() => navigate(`/employees/${employee.id}`)}
+                  className={styles.clickableRow}
                 >
                   <td>
                     <div className={styles.employeeCell}>
@@ -171,9 +175,7 @@ export function Employees() {
                     </span>
                   </td>
                   <td>
-                    <button className={styles.moreBtn}>
-                      <MoreVertical size={16} />
-                    </button>
+                    <ChevronRightIcon size={16} className={styles.rowChevron} />
                   </td>
                 </motion.tr>
               ))

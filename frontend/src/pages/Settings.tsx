@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
 import {
@@ -13,9 +13,10 @@ import {
   Plus,
   Copy,
   Check,
+  AlertCircle,
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
-import { invitationsApi } from '../lib/api';
+import { invitationsApi, authApi } from '../lib/api';
 import styles from './Settings.module.css';
 
 interface Invitation {
@@ -27,12 +28,33 @@ interface Invitation {
 }
 
 export function Settings() {
-  const { user } = useAuth();
+  const { user, refreshUser } = useAuth();
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState('profile');
   const [inviteEmail, setInviteEmail] = useState('');
   const [inviteRole, setInviteRole] = useState('USER');
   const [copied, setCopied] = useState<string | null>(null);
+
+  // Profile form state
+  const [firstName, setFirstName] = useState(user?.firstName || '');
+  const [lastName, setLastName] = useState(user?.lastName || '');
+  const [profileSuccess, setProfileSuccess] = useState(false);
+  const [profileError, setProfileError] = useState('');
+
+  // Password form state
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [passwordSuccess, setPasswordSuccess] = useState(false);
+  const [passwordError, setPasswordError] = useState('');
+
+  // Sync profile state when user changes
+  useEffect(() => {
+    if (user) {
+      setFirstName(user.firstName);
+      setLastName(user.lastName);
+    }
+  }, [user]);
 
   const { data: invitations } = useQuery({
     queryKey: ['invitations'],
@@ -56,11 +78,72 @@ export function Settings() {
     },
   });
 
+  const profileMutation = useMutation({
+    mutationFn: (data: { firstName?: string; lastName?: string }) =>
+      authApi.updateProfile(data),
+    onSuccess: async () => {
+      setProfileSuccess(true);
+      setProfileError('');
+      await refreshUser();
+      setTimeout(() => setProfileSuccess(false), 3000);
+    },
+    onError: (error: Error & { response?: { data?: { error?: { message?: string } } } }) => {
+      setProfileError(error.response?.data?.error?.message || 'Failed to update profile');
+      setProfileSuccess(false);
+    },
+  });
+
+  const passwordMutation = useMutation({
+    mutationFn: (data: { currentPassword: string; newPassword: string }) =>
+      authApi.changePassword(data.currentPassword, data.newPassword),
+    onSuccess: () => {
+      setPasswordSuccess(true);
+      setPasswordError('');
+      setCurrentPassword('');
+      setNewPassword('');
+      setConfirmPassword('');
+      setTimeout(() => setPasswordSuccess(false), 3000);
+    },
+    onError: (error: Error & { response?: { data?: { error?: { message?: string } } } }) => {
+      setPasswordError(error.response?.data?.error?.message || 'Failed to change password');
+      setPasswordSuccess(false);
+    },
+  });
+
   const handleInvite = (e: React.FormEvent) => {
     e.preventDefault();
     if (inviteEmail) {
       inviteMutation.mutate({ email: inviteEmail, role: inviteRole });
     }
+  };
+
+  const handleProfileSave = (e: React.FormEvent) => {
+    e.preventDefault();
+    setProfileError('');
+    profileMutation.mutate({ firstName, lastName });
+  };
+
+  const handlePasswordChange = (e: React.FormEvent) => {
+    e.preventDefault();
+    setPasswordError('');
+
+    if (newPassword !== confirmPassword) {
+      setPasswordError('Passwords do not match');
+      return;
+    }
+
+    if (newPassword.length < 8) {
+      setPasswordError('Password must be at least 8 characters');
+      return;
+    }
+
+    const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]/;
+    if (!passwordRegex.test(newPassword)) {
+      setPasswordError('Password must contain uppercase, lowercase, number, and special character');
+      return;
+    }
+
+    passwordMutation.mutate({ currentPassword, newPassword });
   };
 
   const copyToClipboard = (text: string, id: string) => {
@@ -112,14 +195,27 @@ export function Settings() {
             >
               <div className={styles.section}>
                 <h2 className={styles.sectionTitle}>Profile Information</h2>
-                <div className={styles.form}>
+                <form onSubmit={handleProfileSave} className={styles.form}>
+                  {profileSuccess && (
+                    <div className={styles.successMessage}>
+                      <Check size={16} />
+                      Profile updated successfully
+                    </div>
+                  )}
+                  {profileError && (
+                    <div className={styles.errorMessage}>
+                      <AlertCircle size={16} />
+                      {profileError}
+                    </div>
+                  )}
                   <div className={styles.formRow}>
                     <div className={styles.formGroup}>
                       <label className={styles.label}>First Name</label>
                       <input
                         type="text"
                         className={styles.input}
-                        defaultValue={user?.firstName}
+                        value={firstName}
+                        onChange={(e) => setFirstName(e.target.value)}
                       />
                     </div>
                     <div className={styles.formGroup}>
@@ -127,7 +223,8 @@ export function Settings() {
                       <input
                         type="text"
                         className={styles.input}
-                        defaultValue={user?.lastName}
+                        value={lastName}
+                        onChange={(e) => setLastName(e.target.value)}
                       />
                     </div>
                   </div>
@@ -149,8 +246,14 @@ export function Settings() {
                       disabled
                     />
                   </div>
-                  <button className={styles.saveBtn}>Save Changes</button>
-                </div>
+                  <button
+                    type="submit"
+                    className={styles.saveBtn}
+                    disabled={profileMutation.isPending}
+                  >
+                    {profileMutation.isPending ? 'Saving...' : 'Save Changes'}
+                  </button>
+                </form>
               </div>
             </motion.div>
           )}
@@ -169,6 +272,7 @@ export function Settings() {
                       type="text"
                       className={styles.input}
                       defaultValue={user?.organization?.name}
+                      disabled
                     />
                   </div>
                   <div className={styles.formGroup}>
@@ -183,7 +287,6 @@ export function Settings() {
                       </button>
                     </div>
                   </div>
-                  <button className={styles.saveBtn}>Save Changes</button>
                 </div>
               </div>
             </motion.div>
@@ -271,24 +374,61 @@ export function Settings() {
             >
               <div className={styles.section}>
                 <h2 className={styles.sectionTitle}>Change Password</h2>
-                <div className={styles.form}>
+                <form onSubmit={handlePasswordChange} className={styles.form}>
+                  {passwordSuccess && (
+                    <div className={styles.successMessage}>
+                      <Check size={16} />
+                      Password changed successfully
+                    </div>
+                  )}
+                  {passwordError && (
+                    <div className={styles.errorMessage}>
+                      <AlertCircle size={16} />
+                      {passwordError}
+                    </div>
+                  )}
                   <div className={styles.formGroup}>
                     <label className={styles.label}>Current Password</label>
-                    <input type="password" className={styles.input} />
+                    <input
+                      type="password"
+                      className={styles.input}
+                      value={currentPassword}
+                      onChange={(e) => setCurrentPassword(e.target.value)}
+                      required
+                    />
                   </div>
                   <div className={styles.formGroup}>
                     <label className={styles.label}>New Password</label>
-                    <input type="password" className={styles.input} />
+                    <input
+                      type="password"
+                      className={styles.input}
+                      value={newPassword}
+                      onChange={(e) => setNewPassword(e.target.value)}
+                      required
+                    />
+                    <span className={styles.hint}>
+                      Must be 8+ characters with uppercase, lowercase, number, and special character
+                    </span>
                   </div>
                   <div className={styles.formGroup}>
                     <label className={styles.label}>Confirm New Password</label>
-                    <input type="password" className={styles.input} />
+                    <input
+                      type="password"
+                      className={styles.input}
+                      value={confirmPassword}
+                      onChange={(e) => setConfirmPassword(e.target.value)}
+                      required
+                    />
                   </div>
-                  <button className={styles.saveBtn}>
+                  <button
+                    type="submit"
+                    className={styles.saveBtn}
+                    disabled={passwordMutation.isPending}
+                  >
                     <Key size={16} />
-                    Update Password
+                    {passwordMutation.isPending ? 'Updating...' : 'Update Password'}
                   </button>
-                </div>
+                </form>
               </div>
             </motion.div>
           )}

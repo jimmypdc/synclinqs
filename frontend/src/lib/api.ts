@@ -63,6 +63,10 @@ export const authApi = {
   logout: (refreshToken: string) =>
     api.post('/auth/logout', { refreshToken }),
   me: () => api.get('/auth/me'),
+  updateProfile: (data: { firstName?: string; lastName?: string }) =>
+    api.patch('/auth/profile', data),
+  changePassword: (currentPassword: string, newPassword: string) =>
+    api.post('/auth/change-password', { currentPassword, newPassword }),
 };
 
 // Dashboard API
@@ -127,7 +131,17 @@ export const contributionsApi = {
 export const integrationsApi = {
   list: () => api.get('/integrations'),
   getById: (id: string) => api.get(`/integrations/${id}`),
-  triggerSync: () => api.post('/integrations/sync'),
+  create: (data: {
+    name: string;
+    type: 'SFTP' | 'REST_API' | 'SOAP' | 'WEBHOOK';
+    config: Record<string, unknown>;
+  }) => api.post('/integrations', data),
+  update: (id: string, data: {
+    name?: string;
+    config?: Record<string, unknown>;
+    status?: 'ACTIVE' | 'INACTIVE' | 'ERROR';
+  }) => api.patch(`/integrations/${id}`, data),
+  triggerSync: (integrationId?: string) => api.post('/integrations/sync', { integrationId }),
 };
 
 // Invitations API
@@ -137,6 +151,20 @@ export const invitationsApi = {
   create: (data: { email: string; role?: string }) =>
     api.post('/invitations', data),
   revoke: (id: string) => api.delete(`/invitations/${id}`),
+};
+
+// File Uploads API
+export const fileUploadsApi = {
+  upload: (data: {
+    integrationId: string;
+    planId: string;
+    fileContent: string;
+    fileName: string;
+  }) => api.post('/file-uploads', data),
+  list: (params?: { page?: number; limit?: number; integrationId?: string }) =>
+    api.get('/file-uploads', { params }),
+  getById: (id: string) => api.get(`/file-uploads/${id}`),
+  getTemplate: () => api.get('/file-uploads/template', { responseType: 'blob' }),
 };
 
 // Deferral Elections API

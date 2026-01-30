@@ -417,4 +417,79 @@ export class AuthService {
       expiresIn: config.jwt.expiresIn,
     };
   }
+
+  async updateProfile(
+    userId: string,
+    data: { firstName?: string; lastName?: string }
+  ): Promise<{
+    id: string;
+    email: string;
+    firstName: string;
+    lastName: string;
+    role: string;
+  }> {
+    const user = await prisma.user.update({
+      where: { id: userId },
+      data: {
+        ...(data.firstName && { firstName: data.firstName }),
+        ...(data.lastName && { lastName: data.lastName }),
+      },
+      select: {
+        id: true,
+        email: true,
+        firstName: true,
+        lastName: true,
+        role: true,
+      },
+    });
+
+    await this.auditService.log({
+      userId,
+      action: 'UPDATE_PROFILE',
+      entityType: 'User',
+      entityId: userId,
+      newValues: data,
+    });
+
+    return user;
+  }
+
+  async changePassword(
+    userId: string,
+    currentPassword: string,
+    newPassword: string
+  ): Promise<void> {
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { passwordHash: true },
+    });
+
+    if (!user) {
+      throw createError('User not found', 404, 'NOT_FOUND');
+    }
+
+    const isValidPassword = await bcrypt.compare(currentPassword, user.passwordHash);
+    if (!isValidPassword) {
+      throw createError('Current password is incorrect', 400, 'INVALID_PASSWORD');
+    }
+
+    const newPasswordHash = await bcrypt.hash(newPassword, 12);
+    await prisma.user.update({
+      where: { id: userId },
+      data: { passwordHash: newPasswordHash },
+    });
+
+    // Revoke all refresh tokens for security
+    await prisma.refreshToken.updateMany({
+      where: { userId, revokedAt: null },
+      data: { revokedAt: new Date() },
+    });
+
+    await this.auditService.log({
+      userId,
+      action: 'CHANGE_PASSWORD',
+      entityType: 'User',
+      entityId: userId,
+    });
+  }
 }

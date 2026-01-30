@@ -40,6 +40,22 @@ const registerWithInviteSchema = z.object({
   lastName: z.string().min(1).max(100),
 });
 
+const updateProfileSchema = z.object({
+  firstName: z.string().min(1).max(100).optional(),
+  lastName: z.string().min(1).max(100).optional(),
+});
+
+const changePasswordSchema = z.object({
+  currentPassword: z.string().min(8),
+  newPassword: z
+    .string()
+    .min(8)
+    .regex(
+      /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]/,
+      'Password must contain uppercase, lowercase, number, and special character'
+    ),
+});
+
 export class AuthController {
   private authService = new AuthService();
 
@@ -101,6 +117,26 @@ export class AuthController {
       const data = registerWithInviteSchema.parse(req.body);
       const result = await this.authService.registerWithInvitation(data);
       res.status(201).json(result);
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  updateProfile = async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const data = updateProfileSchema.parse(req.body);
+      const user = await this.authService.updateProfile(req.user!.userId, data);
+      res.json(user);
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  changePassword = async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const { currentPassword, newPassword } = changePasswordSchema.parse(req.body);
+      await this.authService.changePassword(req.user!.userId, currentPassword, newPassword);
+      res.json({ message: 'Password changed successfully' });
     } catch (error) {
       next(error);
     }
