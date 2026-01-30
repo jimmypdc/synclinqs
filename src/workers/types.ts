@@ -28,22 +28,44 @@ export interface IntegrationConfig {
 
 export interface SftpConfig extends IntegrationConfig {
   host: string;
-  port: number;
+  port?: number;
   username: string;
   password?: string;
   privateKey?: string;
-  remotePath: string;
+  passphrase?: string;
+  remotePath?: string;
   localPath?: string;
+  archiveProcessed?: boolean;
+  archivePath?: string;
+  ackPath?: string;
 }
 
 export interface RestApiConfig extends IntegrationConfig {
   baseUrl: string;
-  authType: 'bearer' | 'basic' | 'api_key';
+  authType: 'bearer' | 'basic' | 'api_key' | 'oauth2';
   apiKey?: string;
+  apiKeyHeader?: string;
   username?: string;
   password?: string;
-  bearerToken?: string;
+  accessToken?: string;
+  // OAuth2 settings
+  clientId?: string;
+  clientSecret?: string;
+  tokenUrl?: string;
+  scope?: string;
+  // Request settings
   headers?: Record<string, string>;
+  timeout?: number;
+  pageSize?: number;
+  rateLimitMs?: number;
+  paginationParams?: Record<string, string>;
+  // Endpoints
+  endpoints?: Array<{
+    path: string;
+    method?: string;
+    params?: Record<string, string>;
+  }>;
+  pushEndpoint?: string;
 }
 
 export interface SoapConfig extends IntegrationConfig {
@@ -51,14 +73,29 @@ export interface SoapConfig extends IntegrationConfig {
   endpoint?: string;
   username?: string;
   password?: string;
-  soapHeaders?: Record<string, string>;
+  securityType?: 'WSSecurity' | 'BasicAuth';
+  passwordType?: 'PasswordText' | 'PasswordDigest';
+  hasTimestamp?: boolean;
+  hasNonce?: boolean;
+  soapHeaders?: Array<Record<string, unknown>>;
+  timeout?: number;
+  stopOnError?: boolean;
+  operations?: Array<{
+    name: string;
+    params?: Record<string, unknown>;
+  }>;
 }
 
 export interface WebhookConfig extends IntegrationConfig {
   webhookUrl: string;
   secret?: string;
   headers?: Record<string, string>;
+  authHeader?: string;
+  authValue?: string;
+  timeout?: number;
   retryOnFailure?: boolean;
+  batchSize?: number;
+  events?: string[];
 }
 
 export type QueueName = 'sync-sftp' | 'sync-rest-api' | 'sync-soap' | 'sync-webhook';
