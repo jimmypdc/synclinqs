@@ -40,8 +40,29 @@ export class ContributionsController {
   create = async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> => {
     try {
       const data = createContributionSchema.parse(req.body);
-      const contribution = await this.service.create(data, req.user!.userId);
-      res.status(201).json(contribution);
+      const result = await this.service.create(data, req.user!.userId);
+      res.status(201).json(result);
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  validate = async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const data = createContributionSchema.parse(req.body);
+      const result = await this.service.validate(data);
+      res.json(result);
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  getYtdTotals = async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const { employeeId } = req.params;
+      const year = req.query.year ? parseInt(req.query.year as string, 10) : undefined;
+      const result = await this.service.getYtdTotals(employeeId!, year);
+      res.json(result);
     } catch (error) {
       next(error);
     }

@@ -1,6 +1,7 @@
 import { prisma } from '../lib/prisma.js';
 import { createError } from '../api/middleware/errorHandler.js';
 import { AuditService } from './audit.service.js';
+import { ContributionValidationService, ValidationResult } from './contribution-validation.service.js';
 
 interface CreateContributionData {
   employeeId: string;
@@ -35,6 +36,7 @@ interface ListQuery {
 
 export class ContributionsService {
   private auditService = new AuditService();
+  private validationService = new ContributionValidationService();
 
   async create(data: CreateContributionData, userId: string) {
     // Check for idempotency
@@ -43,28 +45,38 @@ export class ContributionsService {
         where: { idempotencyKey: data.idempotencyKey },
       });
       if (existing) {
-        return existing;
+        return { contribution: existing, validation: null };
       }
     }
 
-    // Validate employee and plan exist
-    const employee = await prisma.employee.findUnique({
-      where: { id: data.employeeId },
-      include: { plan: true },
+    // Comprehensive validation against IRS limits and plan rules
+    const validation = await this.validationService.validateContribution({
+      employeeId: data.employeeId,
+      planId: data.planId,
+      payrollDate: data.payrollDate,
+      employeePreTax: data.employeePreTax,
+      employeeRoth: data.employeeRoth,
+      employerMatch: data.employerMatch,
+      employerNonMatch: data.employerNonMatch,
+      loanRepayment: data.loanRepayment,
     });
 
-    if (!employee) {
-      throw createError('Employee not found', 404, 'NOT_FOUND');
-    }
+    if (!validation.valid) {
+      const errorDetails = validation.errors.map((e) => ({
+        field: e.field,
+        code: e.code,
+        message: e.message,
+        ...(e.limit !== undefined && { limit: e.limit }),
+        ...(e.current !== undefined && { current: e.current }),
+        ...(e.proposed !== undefined && { proposed: e.proposed }),
+      }));
 
-    if (employee.planId !== data.planId) {
-      throw createError('Employee is not enrolled in this plan', 400, 'VALIDATION_ERROR');
-    }
-
-    // Validate against plan limits
-    const totalEmployeeContribution = data.employeePreTax + (data.employeeRoth ?? 0);
-    if (totalEmployeeContribution > employee.plan.employeeContributionLimit) {
-      throw createError('Contribution exceeds plan limit', 400, 'CONTRIBUTION_LIMIT_EXCEEDED');
+      throw createError(
+        'Contribution validation failed',
+        400,
+        'CONTRIBUTION_VALIDATION_FAILED',
+        errorDetails
+      );
     }
 
     const contribution = await prisma.contribution.create({
@@ -87,10 +99,43 @@ export class ContributionsService {
       action: 'CREATE',
       entityType: 'Contribution',
       entityId: contribution.id,
-      newValues: data,
+      newValues: {
+        ...data,
+        ytdTotals: validation.ytdTotals,
+      },
     });
 
-    return contribution;
+    return {
+      contribution,
+      validation: {
+        warnings: validation.warnings,
+        ytdTotals: validation.ytdTotals,
+      },
+    };
+  }
+
+  /**
+   * Validate a contribution without creating it
+   */
+  async validate(data: CreateContributionData): Promise<ValidationResult> {
+    return this.validationService.validateContribution({
+      employeeId: data.employeeId,
+      planId: data.planId,
+      payrollDate: data.payrollDate,
+      employeePreTax: data.employeePreTax,
+      employeeRoth: data.employeeRoth,
+      employerMatch: data.employerMatch,
+      employerNonMatch: data.employerNonMatch,
+      loanRepayment: data.loanRepayment,
+    });
+  }
+
+  /**
+   * Get year-to-date contribution totals for an employee
+   */
+  async getYtdTotals(employeeId: string, year?: number) {
+    const targetYear = year ?? new Date().getFullYear();
+    return this.validationService.getYtdContributions(employeeId, targetYear);
   }
 
   async list(query: ListQuery, organizationId: string) {

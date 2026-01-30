@@ -9,7 +9,9 @@ const controller = new ContributionsController();
 contributionsRouter.use(authenticate);
 
 contributionsRouter.post('/', controller.create);
+contributionsRouter.post('/validate', controller.validate);
 contributionsRouter.get('/', controller.list);
+contributionsRouter.get('/ytd/:employeeId', controller.getYtdTotals);
 contributionsRouter.get('/:id', controller.getById);
 contributionsRouter.patch('/:id', controller.update);
 contributionsRouter.delete('/:id', authorize('ADMIN'), controller.delete);
