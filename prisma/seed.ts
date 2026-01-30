@@ -31,16 +31,30 @@ async function main(): Promise<void> {
   const payrollProvider = await prisma.organization.create({
     data: {
       name: 'Acme Payroll Services',
+      slug: 'acme-payroll-services',
       type: 'PAYROLL_PROVIDER',
       status: 'ACTIVE',
+      billingPlan: 'professional',
+      subscriptionStatus: 'active',
+      maxEmployees: 5000,
+      maxApiCallsPerMonth: 100000,
+      settings: {},
+      metadata: {},
     },
   });
 
   const recordkeeper = await prisma.organization.create({
     data: {
       name: 'Retirement Solutions Inc',
+      slug: 'retirement-solutions-inc',
       type: 'RECORDKEEPER',
       status: 'ACTIVE',
+      billingPlan: 'enterprise',
+      subscriptionStatus: 'active',
+      maxEmployees: null, // Unlimited
+      maxApiCallsPerMonth: null, // Unlimited
+      settings: {},
+      metadata: {},
     },
   });
 
@@ -210,6 +224,7 @@ async function main(): Promise<void> {
   for (let i = 0; i < 20; i++) {
     await prisma.auditLog.create({
       data: {
+        organizationId: payrollProvider.id,
         userId: adminUser.id,
         action: actions[Math.floor(Math.random() * actions.length)],
         entityType: entityTypes[Math.floor(Math.random() * entityTypes.length)],

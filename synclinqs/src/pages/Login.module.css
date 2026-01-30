@@ -1,0 +1,252 @@
+.page {
+  display: flex;
+  min-height: 100vh;
+  position: relative;
+  overflow: hidden;
+}
+
+/* Grid background */
+.gridBackground {
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(var(--border-subtle) 1px, transparent 1px),
+    linear-gradient(90deg, var(--border-subtle) 1px, transparent 1px);
+  background-size: 60px 60px;
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+/* Loading screen */
+.loadingScreen {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  background: var(--bg-primary);
+}
+
+.loadingSpinner {
+  width: 40px;
+  height: 40px;
+  border: 3px solid var(--border-default);
+  border-top-color: var(--accent-primary);
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Brand panel */
+.brandPanel {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: var(--space-12);
+  background: var(--bg-secondary);
+  border-right: 1px solid var(--border-subtle);
+  position: relative;
+}
+
+.brandPanel::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: var(--accent-primary);
+}
+
+.brandContent {
+  max-width: 400px;
+}
+
+.logoMark {
+  width: 64px;
+  height: 64px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--accent-primary);
+  color: var(--bg-primary);
+  font-size: 2rem;
+  font-weight: 700;
+  margin-bottom: var(--space-8);
+}
+
+.brandName {
+  font-family: var(--font-display);
+  font-size: 2.5rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  letter-spacing: -0.03em;
+  margin: 0 0 var(--space-4);
+}
+
+.brandTagline {
+  font-size: 1.125rem;
+  color: var(--text-secondary);
+  line-height: 1.6;
+  margin: 0 0 var(--space-10);
+}
+
+.features {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.feature {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  font-size: 0.9375rem;
+  color: var(--text-secondary);
+}
+
+.featureIcon {
+  color: var(--accent-primary);
+  font-size: 0.75rem;
+}
+
+.brandFooter {
+  display: flex;
+  gap: var(--space-6);
+}
+
+.copyright,
+.legal {
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+/* Form panel */
+.formPanel {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-12);
+  background: var(--bg-primary);
+}
+
+.formContainer {
+  width: 100%;
+  max-width: 400px;
+}
+
+.formHeader {
+  margin-bottom: var(--space-8);
+}
+
+.formTitle {
+  font-family: var(--font-display);
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  letter-spacing: -0.02em;
+  margin: 0 0 var(--space-2);
+}
+
+.formSubtitle {
+  font-size: 0.9375rem;
+  color: var(--text-tertiary);
+  margin: 0;
+}
+
+/* Error banner */
+.errorBanner {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  background: var(--error-muted);
+  border: 1px solid var(--error);
+  color: var(--error);
+  font-size: 0.875rem;
+  margin-bottom: var(--space-6);
+}
+
+/* Form */
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+}
+
+.formActions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.rememberMe {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+.rememberMe input {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--accent-primary);
+}
+
+.forgotLink {
+  font-size: 0.875rem;
+  color: var(--accent-primary);
+}
+
+.forgotLink:hover {
+  color: var(--accent-hover);
+}
+
+.submitButton {
+  width: 100%;
+  margin-top: var(--space-4);
+}
+
+/* Demo credentials */
+.demoCredentials {
+  margin-top: var(--space-8);
+  padding: var(--space-4);
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-subtle);
+  text-align: center;
+}
+
+.demoLabel {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 0.625rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  margin-bottom: var(--space-2);
+}
+
+.demoCode {
+  font-family: var(--font-mono);
+  font-size: 0.8125rem;
+  color: var(--text-secondary);
+}
+
+/* Responsive */
+@media (max-width: 900px) {
+  .brandPanel {
+    display: none;
+  }
+
+  .formPanel {
+    padding: var(--space-6);
+  }
+}

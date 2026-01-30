@@ -1,12 +1,17 @@
 import { Router } from 'express';
 import { DashboardController } from '../controllers/dashboard.controller.js';
 import { authenticate } from '../middleware/auth.js';
+import { tenantContext } from '../middleware/tenantContext.js';
+import { organizationRateLimiter, trackApiUsage } from '../middleware/organizationRateLimiter.js';
 
 export const dashboardRouter = Router();
 const controller = new DashboardController();
 
-// All routes require authentication
+// All routes require authentication and tenant context
 dashboardRouter.use(authenticate);
+dashboardRouter.use(tenantContext);
+dashboardRouter.use(organizationRateLimiter);
+dashboardRouter.use(trackApiUsage);
 
 // Overall stats
 dashboardRouter.get('/stats', controller.getStats);

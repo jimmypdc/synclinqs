@@ -1,0 +1,143 @@
+.content {
+  padding: var(--space-8);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+}
+
+/* Tabs */
+.tabs {
+  display: flex;
+  gap: var(--space-1);
+  padding: var(--space-1);
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-subtle);
+  width: fit-content;
+}
+
+.tab {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4);
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+  transition: all var(--transition-fast);
+}
+
+.tab:hover {
+  color: var(--text-primary);
+  background: var(--bg-tertiary);
+}
+
+.tab.active {
+  color: var(--accent-primary);
+  background: var(--accent-muted);
+}
+
+/* Tab Content */
+.tabContent {
+  max-width: 600px;
+}
+
+/* Form */
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+}
+
+.formRow {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-4);
+}
+
+/* Messages */
+.errorMessage {
+  padding: var(--space-3) var(--space-4);
+  background: var(--error-muted);
+  border: 1px solid var(--error);
+  color: var(--error);
+  font-size: 0.875rem;
+}
+
+.successMessage {
+  padding: var(--space-3) var(--space-4);
+  background: var(--success-muted);
+  border: 1px solid var(--success);
+  color: var(--success);
+  font-size: 0.875rem;
+}
+
+/* Info Box */
+.infoBox {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-tertiary);
+  font-size: 0.875rem;
+}
+
+/* Notifications */
+.notificationList {
+  display: flex;
+  flex-direction: column;
+}
+
+.notificationItem {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-4) 0;
+  border-bottom: 1px solid var(--border-subtle);
+  cursor: pointer;
+}
+
+.notificationItem:last-child {
+  border-bottom: none;
+}
+
+.notificationItem:hover {
+  background: var(--bg-tertiary);
+  margin: 0 calc(-1 * var(--space-4));
+  padding-left: var(--space-4);
+  padding-right: var(--space-4);
+}
+
+.notificationInfo {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.notificationTitle {
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.notificationDesc {
+  font-size: 0.8125rem;
+  color: var(--text-tertiary);
+}
+
+.notificationItem input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--accent-primary);
+}
+
+@media (max-width: 600px) {
+  .tabs {
+    width: 100%;
+    overflow-x: auto;
+  }
+
+  .formRow {
+    grid-template-columns: 1fr;
+  }
+}

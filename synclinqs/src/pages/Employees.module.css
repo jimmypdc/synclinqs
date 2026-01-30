@@ -1,0 +1,166 @@
+.content {
+  padding: var(--space-8);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+}
+
+/* Toolbar */
+.toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+}
+
+.searchFilters {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+}
+
+.searchWrapper {
+  width: 280px;
+}
+
+.filterGroup {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: var(--space-1);
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-subtle);
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+/* Employee Row */
+.employeeRow {
+  border-bottom: 1px solid var(--border-subtle);
+  transition: background var(--transition-fast);
+}
+
+.employeeRow:hover {
+  background: var(--bg-tertiary);
+}
+
+.employeeInfo {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.avatar {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-tertiary);
+  color: var(--text-secondary);
+}
+
+.employeeName {
+  display: flex;
+  flex-direction: column;
+}
+
+.name {
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.employeeNumber {
+  font-family: var(--font-mono);
+  font-size: 0.8125rem;
+  color: var(--text-secondary);
+}
+
+.email {
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+}
+
+.date {
+  font-family: var(--font-mono);
+  font-size: 0.8125rem;
+  color: var(--text-tertiary);
+}
+
+.actionButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  color: var(--text-muted);
+  transition: all var(--transition-fast);
+}
+
+.actionButton:hover {
+  color: var(--text-primary);
+  background: var(--bg-elevated);
+}
+
+/* Skeleton */
+.skeletonRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+/* Pagination */
+.pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-4) 0;
+}
+
+.paginationInfo {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  color: var(--text-tertiary);
+}
+
+.paginationButtons {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.pageNumber {
+  font-family: var(--font-mono);
+  font-size: 0.8125rem;
+  color: var(--text-secondary);
+  min-width: 60px;
+  text-align: center;
+}
+
+@media (max-width: 900px) {
+  .toolbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .searchFilters {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .searchWrapper {
+    width: 100%;
+  }
+
+  .filterGroup {
+    justify-content: center;
+  }
+
+  .actions {
+    justify-content: flex-end;
+  }
+}

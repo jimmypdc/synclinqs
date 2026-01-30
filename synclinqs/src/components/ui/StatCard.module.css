@@ -1,0 +1,140 @@
+.card {
+  position: relative;
+  padding: var(--space-5);
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-subtle);
+  overflow: hidden;
+}
+
+/* Top accent line */
+.card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 2px;
+  background: var(--border-default);
+}
+
+/* Variant accent lines */
+.accent::before {
+  background: var(--accent-primary);
+}
+
+.success::before {
+  background: var(--success);
+}
+
+.warning::before {
+  background: var(--warning);
+}
+
+.error::before {
+  background: var(--error);
+}
+
+.header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: var(--space-3);
+}
+
+.label {
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  font-weight: 500;
+  color: var(--text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.iconWrapper {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  background: var(--bg-tertiary);
+  color: var(--text-secondary);
+}
+
+.accent .iconWrapper {
+  background: var(--accent-muted);
+  color: var(--accent-primary);
+}
+
+.success .iconWrapper {
+  background: var(--success-muted);
+  color: var(--success);
+}
+
+.warning .iconWrapper {
+  background: var(--warning-muted);
+  color: var(--warning);
+}
+
+.error .iconWrapper {
+  background: var(--error-muted);
+  color: var(--error);
+}
+
+.valueWrapper {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-3);
+}
+
+.value {
+  font-family: var(--font-display);
+  font-size: 1.75rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  letter-spacing: -0.02em;
+  line-height: 1;
+}
+
+.trend {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+.positive {
+  color: var(--success);
+}
+
+.negative {
+  color: var(--error);
+}
+
+.subtext {
+  display: block;
+  margin-top: var(--space-2);
+  font-size: 0.8125rem;
+  color: var(--text-tertiary);
+}
+
+/* Decorative corner accent */
+.cornerAccent {
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  width: 40px;
+  height: 40px;
+  background: linear-gradient(
+    135deg,
+    transparent 50%,
+    var(--border-subtle) 50%
+  );
+  opacity: 0.5;
+}
+
+.accent .cornerAccent {
+  background: linear-gradient(
+    135deg,
+    transparent 50%,
+    var(--accent-muted) 50%
+  );
+}

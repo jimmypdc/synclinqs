@@ -30,6 +30,14 @@ interface RegisterWithInviteData {
 export class AuthService {
   private auditService = new AuditService();
 
+  private generateSlug(name: string): string {
+    return name
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-|-$/g, '')
+      .slice(0, 100);
+  }
+
   async register(data: RegisterData): Promise<{
     user: {
       id: string;
@@ -58,12 +66,26 @@ export class AuthService {
 
     // Create organization and user in a transaction
     const result = await prisma.$transaction(async (tx) => {
+      // Generate unique slug
+      const baseSlug = this.generateSlug(data.organizationName);
+      const existingSlug = await tx.organization.findUnique({
+        where: { slug: baseSlug },
+      });
+      const slug = existingSlug ? `${baseSlug}-${Date.now().toString(36)}` : baseSlug;
+
       // Create organization
       const organization = await tx.organization.create({
         data: {
           name: data.organizationName,
+          slug,
           type: data.organizationType,
           status: 'ACTIVE',
+          billingPlan: 'trial',
+          subscriptionStatus: 'active',
+          maxEmployees: 50,
+          maxApiCallsPerMonth: 1000,
+          settings: {},
+          metadata: {},
         },
       });
 

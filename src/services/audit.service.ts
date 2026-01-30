@@ -3,6 +3,7 @@ import { prisma } from '../lib/prisma.js';
 import { logger } from '../utils/logger.js';
 
 interface AuditLogParams {
+  organizationId?: string;
   userId?: string;
   action: string;
   entityType: string;
@@ -19,6 +20,7 @@ export class AuditService {
     try {
       await prisma.auditLog.create({
         data: {
+          organizationId: params.organizationId,
           userId: params.userId,
           action: params.action,
           entityType: params.entityType,
@@ -39,10 +41,11 @@ export class AuditService {
   async getAuditTrail(
     entityType: string,
     entityId: string,
-    options?: { limit?: number; offset?: number }
+    options?: { limit?: number; offset?: number; organizationId?: string }
   ): Promise<{
     logs: Array<{
       id: string;
+      organizationId: string | null;
       userId: string | null;
       action: string;
       oldValues: unknown;
@@ -51,14 +54,25 @@ export class AuditService {
     }>;
     total: number;
   }> {
+    const where: Prisma.AuditLogWhereInput = {
+      entityType,
+      entityId,
+    };
+
+    // Filter by organization if provided
+    if (options?.organizationId) {
+      where.organizationId = options.organizationId;
+    }
+
     const [logs, total] = await Promise.all([
       prisma.auditLog.findMany({
-        where: { entityType, entityId },
+        where,
         orderBy: { createdAt: 'desc' },
         take: options?.limit ?? 50,
         skip: options?.offset ?? 0,
         select: {
           id: true,
+          organizationId: true,
           userId: true,
           action: true,
           oldValues: true,
@@ -66,9 +80,79 @@ export class AuditService {
           createdAt: true,
         },
       }),
-      prisma.auditLog.count({
-        where: { entityType, entityId },
+      prisma.auditLog.count({ where }),
+    ]);
+
+    return { logs, total };
+  }
+
+  async getOrganizationAuditLogs(
+    organizationId: string,
+    options?: {
+      limit?: number;
+      offset?: number;
+      action?: string;
+      entityType?: string;
+      startDate?: Date;
+      endDate?: Date;
+    }
+  ): Promise<{
+    logs: Array<{
+      id: string;
+      userId: string | null;
+      action: string;
+      entityType: string;
+      entityId: string | null;
+      newValues: unknown;
+      createdAt: Date;
+      user?: { email: string; firstName: string; lastName: string } | null;
+    }>;
+    total: number;
+  }> {
+    const where: Prisma.AuditLogWhereInput = {
+      organizationId,
+    };
+
+    if (options?.action) {
+      where.action = options.action;
+    }
+    if (options?.entityType) {
+      where.entityType = options.entityType;
+    }
+    if (options?.startDate || options?.endDate) {
+      where.createdAt = {};
+      if (options.startDate) {
+        where.createdAt.gte = options.startDate;
+      }
+      if (options.endDate) {
+        where.createdAt.lte = options.endDate;
+      }
+    }
+
+    const [logs, total] = await Promise.all([
+      prisma.auditLog.findMany({
+        where,
+        orderBy: { createdAt: 'desc' },
+        take: options?.limit ?? 50,
+        skip: options?.offset ?? 0,
+        select: {
+          id: true,
+          userId: true,
+          action: true,
+          entityType: true,
+          entityId: true,
+          newValues: true,
+          createdAt: true,
+          user: {
+            select: {
+              email: true,
+              firstName: true,
+              lastName: true,
+            },
+          },
+        },
       }),
+      prisma.auditLog.count({ where }),
     ]);
 
     return { logs, total };
