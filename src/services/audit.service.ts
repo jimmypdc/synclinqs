@@ -1,3 +1,4 @@
+import { Prisma } from '@prisma/client';
 import { prisma } from '../lib/prisma.js';
 import { logger } from '../utils/logger.js';
 
@@ -22,8 +23,8 @@ export class AuditService {
           action: params.action,
           entityType: params.entityType,
           entityId: params.entityId,
-          oldValues: params.oldValues,
-          newValues: params.newValues,
+          oldValues: params.oldValues as Prisma.InputJsonValue | undefined,
+          newValues: params.newValues as Prisma.InputJsonValue | undefined,
           ipAddress: params.ipAddress,
           userAgent: params.userAgent,
           requestId: params.requestId,

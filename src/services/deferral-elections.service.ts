@@ -256,7 +256,7 @@ export class DeferralElectionsService {
         catchUpPercent: existing.catchUpPercent,
         status: existing.status,
       },
-      newValues: data,
+      newValues: data as Record<string, unknown>,
     });
 
     return this.formatElection(election);

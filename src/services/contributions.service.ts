@@ -223,8 +223,8 @@ export class ContributionsService {
       action: 'UPDATE',
       entityType: 'Contribution',
       entityId: id,
-      oldValues: existing,
-      newValues: data,
+      oldValues: existing as Record<string, unknown>,
+      newValues: data as Record<string, unknown>,
     });
 
     return contribution;

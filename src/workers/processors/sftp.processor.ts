@@ -69,6 +69,11 @@ export class SftpProcessor implements TypeProcessor {
           const headers = lines[0]?.split(',').map((h) => h.trim().toLowerCase());
           const dataLines = lines.slice(1);
 
+          if (!headers || headers.length === 0) {
+            logger.warn('Skipping file with no headers', { file: file.name });
+            continue;
+          }
+
           logger.info('Processing file', {
             file: file.name,
             headers,

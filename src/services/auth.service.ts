@@ -1,11 +1,15 @@
 import bcrypt from 'bcrypt';
-import jwt from 'jsonwebtoken';
+import jwt, { SignOptions } from 'jsonwebtoken';
 import { v4 as uuidv4 } from 'uuid';
 import { config } from '../config/index.js';
 import { prisma } from '../lib/prisma.js';
 import { createError } from '../api/middleware/errorHandler.js';
 import { AuditService } from './audit.service.js';
 import type { JwtPayload } from '../api/middleware/auth.js';
+
+const jwtSignOptions: SignOptions = {
+  expiresIn: config.jwt.expiresIn as SignOptions['expiresIn'],
+};
 
 interface RegisterData {
   email: string;
@@ -90,9 +94,7 @@ export class AuthService {
       organizationId: result.organization.id,
     };
 
-    const accessToken = jwt.sign(payload, config.jwt.secret, {
-      expiresIn: config.jwt.expiresIn,
-    });
+    const accessToken = jwt.sign(payload, config.jwt.secret, jwtSignOptions);
 
     const refreshToken = uuidv4();
     const refreshExpiresAt = new Date();
@@ -169,9 +171,7 @@ export class AuthService {
       organizationId: user.organizationId,
     };
 
-    const accessToken = jwt.sign(payload, config.jwt.secret, {
-      expiresIn: config.jwt.expiresIn,
-    });
+    const accessToken = jwt.sign(payload, config.jwt.secret, jwtSignOptions);
 
     const refreshToken = uuidv4();
     const refreshExpiresAt = new Date();
@@ -231,9 +231,7 @@ export class AuthService {
       organizationId: storedToken.user.organizationId,
     };
 
-    const accessToken = jwt.sign(payload, config.jwt.secret, {
-      expiresIn: config.jwt.expiresIn,
-    });
+    const accessToken = jwt.sign(payload, config.jwt.secret, jwtSignOptions);
 
     const newRefreshToken = uuidv4();
     const refreshExpiresAt = new Date();
@@ -371,9 +369,7 @@ export class AuthService {
       organizationId: result.organization.id,
     };
 
-    const accessToken = jwt.sign(payload, config.jwt.secret, {
-      expiresIn: config.jwt.expiresIn,
-    });
+    const accessToken = jwt.sign(payload, config.jwt.secret, jwtSignOptions);
 
     const refreshToken = uuidv4();
     const refreshExpiresAt = new Date();
