@@ -10,9 +10,19 @@ jest.mock('../../../src/lib/prisma', () => ({
   prisma: {
     integration: {
       findFirst: jest.fn(),
+      findUnique: jest.fn(),
       update: jest.fn(),
     },
+    user: {
+      findUnique: jest.fn(),
+    },
   },
+}));
+
+jest.mock('../../../src/services/email.service', () => ({
+  EmailService: jest.fn().mockImplementation(() => ({
+    sendSyncNotification: jest.fn().mockResolvedValue(undefined),
+  })),
 }));
 
 jest.mock('../../../src/utils/encryption', () => ({
@@ -69,7 +79,9 @@ describe('Base Processor', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     (prisma.integration.findFirst as jest.Mock).mockResolvedValue(mockIntegration);
+    (prisma.integration.findUnique as jest.Mock).mockResolvedValue({ name: 'Test Integration' });
     (prisma.integration.update as jest.Mock).mockResolvedValue(mockIntegration);
+    (prisma.user.findUnique as jest.Mock).mockResolvedValue({ email: 'test@example.com' });
     (decrypt as jest.Mock).mockReturnValue('{"apiKey": "test"}');
   });
 
