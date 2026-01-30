@@ -3,6 +3,21 @@ import { z } from 'zod';
 import { AuthService } from '../../services/auth.service.js';
 import { AuthenticatedRequest } from '../middleware/auth.js';
 
+const registerSchema = z.object({
+  email: z.string().email(),
+  password: z
+    .string()
+    .min(8)
+    .regex(
+      /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]/,
+      'Password must contain uppercase, lowercase, number, and special character'
+    ),
+  firstName: z.string().min(1).max(100),
+  lastName: z.string().min(1).max(100),
+  organizationName: z.string().min(1).max(255),
+  organizationType: z.enum(['PAYROLL_PROVIDER', 'RECORDKEEPER']),
+});
+
 const loginSchema = z.object({
   email: z.string().email(),
   password: z.string().min(8),
@@ -14,6 +29,16 @@ const refreshSchema = z.object({
 
 export class AuthController {
   private authService = new AuthService();
+
+  register = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const data = registerSchema.parse(req.body);
+      const result = await this.authService.register(data);
+      res.status(201).json(result);
+    } catch (error) {
+      next(error);
+    }
+  };
 
   login = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {

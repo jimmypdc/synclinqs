@@ -5,6 +5,7 @@ import { authenticate } from '../middleware/auth.js';
 export const authRouter = Router();
 const controller = new AuthController();
 
+authRouter.post('/register', controller.register);
 authRouter.post('/login', controller.login);
 authRouter.post('/refresh', controller.refresh);
 authRouter.post('/logout', authenticate, controller.logout);

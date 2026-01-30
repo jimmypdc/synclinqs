@@ -7,8 +7,128 @@ import { createError } from '../api/middleware/errorHandler.js';
 import { AuditService } from './audit.service.js';
 import type { JwtPayload } from '../api/middleware/auth.js';
 
+interface RegisterData {
+  email: string;
+  password: string;
+  firstName: string;
+  lastName: string;
+  organizationName: string;
+  organizationType: 'PAYROLL_PROVIDER' | 'RECORDKEEPER';
+}
+
 export class AuthService {
   private auditService = new AuditService();
+
+  async register(data: RegisterData): Promise<{
+    user: {
+      id: string;
+      email: string;
+      firstName: string;
+      lastName: string;
+      role: string;
+    };
+    organization: {
+      id: string;
+      name: string;
+      type: string;
+    };
+    accessToken: string;
+    refreshToken: string;
+    expiresIn: string;
+  }> {
+    // Check if email already exists
+    const existingUser = await prisma.user.findUnique({
+      where: { email: data.email },
+    });
+
+    if (existingUser) {
+      throw createError('Email already registered', 409, 'EMAIL_EXISTS');
+    }
+
+    // Create organization and user in a transaction
+    const result = await prisma.$transaction(async (tx) => {
+      // Create organization
+      const organization = await tx.organization.create({
+        data: {
+          name: data.organizationName,
+          type: data.organizationType,
+          status: 'ACTIVE',
+        },
+      });
+
+      // Hash password
+      const passwordHash = await bcrypt.hash(data.password, 12);
+
+      // Create user as ADMIN of the new organization
+      const user = await tx.user.create({
+        data: {
+          email: data.email,
+          passwordHash,
+          firstName: data.firstName,
+          lastName: data.lastName,
+          role: 'ADMIN',
+          status: 'ACTIVE',
+          organizationId: organization.id,
+        },
+      });
+
+      return { user, organization };
+    });
+
+    // Generate tokens
+    const payload: JwtPayload = {
+      userId: result.user.id,
+      email: result.user.email,
+      role: result.user.role,
+      organizationId: result.organization.id,
+    };
+
+    const accessToken = jwt.sign(payload, config.jwt.secret, {
+      expiresIn: config.jwt.expiresIn,
+    });
+
+    const refreshToken = uuidv4();
+    const refreshExpiresAt = new Date();
+    refreshExpiresAt.setDate(refreshExpiresAt.getDate() + 7);
+
+    await prisma.refreshToken.create({
+      data: {
+        token: refreshToken,
+        userId: result.user.id,
+        expiresAt: refreshExpiresAt,
+      },
+    });
+
+    await this.auditService.log({
+      userId: result.user.id,
+      action: 'REGISTER',
+      entityType: 'User',
+      entityId: result.user.id,
+      newValues: {
+        email: data.email,
+        organizationName: data.organizationName,
+        organizationType: data.organizationType,
+      },
+    });
+
+    return {
+      user: {
+        id: result.user.id,
+        email: result.user.email,
+        firstName: result.user.firstName,
+        lastName: result.user.lastName,
+        role: result.user.role,
+      },
+      organization: {
+        id: result.organization.id,
+        name: result.organization.name,
+        type: result.organization.type,
+      },
+      accessToken,
+      refreshToken,
+      expiresIn: config.jwt.expiresIn,
+    };
+  }
 
   async login(email: string, password: string): Promise<{
     accessToken: string;
