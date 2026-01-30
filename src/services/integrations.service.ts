@@ -117,7 +117,7 @@ export class IntegrationsService {
     const triggeredAt = new Date().toISOString();
     const syncJobs = await Promise.all(
       integrations.map(async (integration) => {
-        const idempotencyKey = `sync:${integration.id}:${uuidv4()}`;
+        const idempotencyKey = `sync-${integration.id}-${uuidv4()}`;
         const jobData: SyncJobData = {
           integrationId: integration.id,
           organizationId,

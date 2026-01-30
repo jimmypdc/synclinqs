@@ -61,7 +61,7 @@ export interface WebhookConfig extends IntegrationConfig {
   retryOnFailure?: boolean;
 }
 
-export type QueueName = 'sync:sftp' | 'sync:rest-api' | 'sync:soap' | 'sync:webhook';
+export type QueueName = 'sync-sftp' | 'sync-rest-api' | 'sync-soap' | 'sync-webhook';
 
 export interface QueueConfig {
   name: QueueName;
@@ -73,28 +73,28 @@ export interface QueueConfig {
 
 export const QUEUE_CONFIGS: Record<IntegrationType, QueueConfig> = {
   SFTP: {
-    name: 'sync:sftp',
+    name: 'sync-sftp',
     concurrency: 2,
     timeoutMs: 30 * 60 * 1000, // 30 minutes
     maxRetries: 3,
     backoffBaseMs: 60 * 1000, // 60 seconds
   },
   REST_API: {
-    name: 'sync:rest-api',
+    name: 'sync-rest-api',
     concurrency: 10,
     timeoutMs: 5 * 60 * 1000, // 5 minutes
     maxRetries: 5,
     backoffBaseMs: 5 * 1000, // 5 seconds
   },
   SOAP: {
-    name: 'sync:soap',
+    name: 'sync-soap',
     concurrency: 3,
     timeoutMs: 10 * 60 * 1000, // 10 minutes
     maxRetries: 4,
     backoffBaseMs: 30 * 1000, // 30 seconds
   },
   WEBHOOK: {
-    name: 'sync:webhook',
+    name: 'sync-webhook',
     concurrency: 5,
     timeoutMs: 1 * 60 * 1000, // 1 minute
     maxRetries: 2,

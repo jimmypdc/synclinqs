@@ -11,22 +11,40 @@ let isShuttingDown = false;
 export async function startWorkers(): Promise<void> {
   logger.info('Starting workers');
 
-  const connection = getRedisConnection();
+  let connection;
+  try {
+    connection = getRedisConnection();
+    logger.info('Redis connection obtained');
+  } catch (err) {
+    const error = err as Error;
+    logger.error('Failed to get Redis connection', { error: error.message, stack: error.stack });
+    throw err;
+  }
 
   for (const [integrationType, config] of Object.entries(QUEUE_CONFIGS)) {
     const type = integrationType as IntegrationType;
     const processor = getProcessor(type);
 
-    const worker = new Worker<SyncJobData, SyncJobResult>(
-      config.name,
-      async (job) => processJob(job, processor),
-      {
-        connection,
-        concurrency: config.concurrency,
-        lockDuration: config.timeoutMs,
-        stalledInterval: Math.floor(config.timeoutMs / 2),
-      }
-    );
+    logger.info('Creating worker', { queueName: config.name, integrationType });
+
+    let worker: Worker<SyncJobData, SyncJobResult>;
+    try {
+      worker = new Worker<SyncJobData, SyncJobResult>(
+        config.name,
+        async (job) => processJob(job, processor),
+        {
+          connection,
+          concurrency: config.concurrency,
+          lockDuration: config.timeoutMs,
+          stalledInterval: Math.floor(config.timeoutMs / 2),
+        }
+      );
+    } catch (err) {
+      console.error('Worker creation error:', err);
+      const error = err as Error;
+      logger.error('Failed to create worker', { queueName: config.name, errorMsg: String(err), errorName: error.name });
+      throw err;
+    }
 
     worker.on('completed', (job, result) => {
       logger.info('Job completed', {
@@ -59,6 +77,9 @@ export async function startWorkers(): Promise<void> {
         queueName: config.name,
       });
     });
+
+    // Wait for worker to be ready
+    await worker.waitUntilReady();
 
     workers.set(config.name, worker);
     logger.info('Worker started', {
@@ -142,7 +163,7 @@ export async function main(): Promise<void> {
     await startWorkers();
     logger.info('Worker process ready');
   } catch (error) {
-    logger.error('Failed to start workers', { error });
+    console.error('Startup error:', error);
     process.exit(1);
   }
 }
