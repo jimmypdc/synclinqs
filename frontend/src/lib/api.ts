@@ -188,3 +188,147 @@ export const electionsApi = {
     status?: string;
   }) => api.patch(`/deferral-elections/${id}`, data),
 };
+
+// Mappings API
+export const mappingsApi = {
+  list: (params?: { page?: number; limit?: number; sourceSystem?: string; destinationSystem?: string; status?: string }) =>
+    api.get('/mappings', { params }),
+  getById: (id: string) => api.get(`/mappings/${id}`),
+  create: (data: {
+    name: string;
+    sourceSystem: string;
+    destinationSystem: string;
+    mappingType: string;
+    mappingRules: Record<string, unknown>;
+  }) => api.post('/mappings', data),
+  update: (id: string, data: {
+    name?: string;
+    mappingRules?: Record<string, unknown>;
+    isActive?: boolean;
+  }) => api.patch(`/mappings/${id}`, data),
+  delete: (id: string) => api.delete(`/mappings/${id}`),
+  test: (id: string, sampleData: Record<string, unknown>[]) =>
+    api.post(`/mappings/${id}/test`, { sampleData }),
+  activate: (id: string) => api.post(`/mappings/${id}/activate`),
+  deactivate: (id: string) => api.post(`/mappings/${id}/deactivate`),
+  getLogs: (id: string, params?: { page?: number; limit?: number }) =>
+    api.get(`/mappings/${id}/logs`, { params }),
+  createFromTemplate: (templateId: string, data: { name: string; customizations?: Record<string, unknown> }) =>
+    api.post(`/mappings/from-template/${templateId}`, data),
+};
+
+// Field Definitions API
+export const fieldDefinitionsApi = {
+  list: (params?: { system?: string; page?: number; limit?: number }) =>
+    api.get('/field-definitions', { params }),
+  getSystems: () => api.get('/field-definitions/systems'),
+  getById: (id: string) => api.get(`/field-definitions/${id}`),
+};
+
+// Mapping Templates API
+export const mappingTemplatesApi = {
+  list: (params?: { sourceSystem?: string; destinationSystem?: string }) =>
+    api.get('/mapping-templates', { params }),
+  getById: (id: string) => api.get(`/mapping-templates/${id}`),
+  getPopular: (limit?: number) => api.get('/mapping-templates/popular', { params: { limit } }),
+};
+
+// Transformations API
+export const transformationsApi = {
+  list: (params?: { functionType?: string }) =>
+    api.get('/transformations', { params }),
+  getById: (id: string) => api.get(`/transformations/${id}`),
+  test: (id: string, input: unknown) =>
+    api.post(`/transformations/${id}/test`, { input }),
+};
+
+// Errors API
+export const errorsApi = {
+  list: (params?: { page?: number; limit?: number; status?: string; severity?: string; errorType?: string }) =>
+    api.get('/errors', { params }),
+  getById: (id: string) => api.get(`/errors/${id}`),
+  getStats: () => api.get('/errors/stats'),
+  getRetryLogs: (id: string) => api.get(`/errors/${id}/retries`),
+  retry: (id: string) => api.post(`/errors/${id}/retry`),
+  bulkRetry: (ids: string[]) => api.post('/errors/bulk-retry', { ids }),
+  resolve: (id: string, data: { resolutionNotes: string }) =>
+    api.patch(`/errors/${id}/resolve`, data),
+  ignore: (id: string, data: { resolutionNotes: string }) =>
+    api.patch(`/errors/${id}/ignore`, data),
+};
+
+// Reconciliation API
+export const reconciliationApi = {
+  getDashboard: () => api.get('/reconciliation/dashboard'),
+  listReports: (params?: { page?: number; limit?: number; status?: string; startDate?: string; endDate?: string }) =>
+    api.get('/reconciliation/reports', { params }),
+  getReport: (id: string) => api.get(`/reconciliation/reports/${id}`),
+  getItems: (reportId: string, params?: { page?: number; limit?: number; matchStatus?: string }) =>
+    api.get(`/reconciliation/reports/${reportId}/items`, { params }),
+  run: (data?: { date?: string; sourceSystem?: string; destinationSystem?: string }) =>
+    api.post('/reconciliation/run', data),
+  resolveItem: (id: string, data: { resolutionAction: string; notes?: string }) =>
+    api.patch(`/reconciliation/items/${id}`, data),
+  bulkResolve: (ids: string[], data: { resolutionAction: string; notes?: string }) =>
+    api.post('/reconciliation/items/bulk-resolve', { ids, ...data }),
+};
+
+// Jobs API
+export const jobsApi = {
+  list: (params?: { page?: number; limit?: number; jobType?: string; isActive?: boolean }) =>
+    api.get('/jobs', { params }),
+  getById: (id: string) => api.get(`/jobs/${id}`),
+  getStats: () => api.get('/jobs/stats'),
+  create: (data: {
+    name: string;
+    jobType: string;
+    scheduleCron: string;
+    timezone?: string;
+    sourceSystem?: string;
+    destinationSystem?: string;
+    configuration?: Record<string, unknown>;
+  }) => api.post('/jobs', data),
+  update: (id: string, data: {
+    name?: string;
+    scheduleCron?: string;
+    isActive?: boolean;
+    configuration?: Record<string, unknown>;
+  }) => api.patch(`/jobs/${id}`, data),
+  delete: (id: string) => api.delete(`/jobs/${id}`),
+  execute: (id: string) => api.post(`/jobs/${id}/run`),
+  getExecutions: (id: string, params?: { page?: number; limit?: number }) =>
+    api.get(`/jobs/${id}/executions`, { params }),
+  validateCron: (expression: string) =>
+    api.post('/jobs/validate-cron', { expression }),
+};
+
+// Notifications API
+export const notificationsApi = {
+  list: (params?: { page?: number; limit?: number; isRead?: boolean }) =>
+    api.get('/notifications', { params }),
+  getUnreadCount: () => api.get('/notifications/unread-count'),
+  markAsRead: (id: string) => api.patch(`/notifications/${id}/read`),
+  markAllAsRead: () => api.post('/notifications/mark-all-read'),
+  getPreferences: () => api.get('/notifications/preferences'),
+  updatePreferences: (data: Record<string, boolean>) =>
+    api.put('/notifications/preferences', data),
+};
+
+// Alert Rules API
+export const alertRulesApi = {
+  list: () => api.get('/alert-rules'),
+  create: (data: {
+    name: string;
+    ruleType: string;
+    condition: Record<string, unknown>;
+    severity: string;
+    recipients: string[];
+    channels: string[];
+  }) => api.post('/alert-rules', data),
+  update: (id: string, data: {
+    name?: string;
+    condition?: Record<string, unknown>;
+    isActive?: boolean;
+  }) => api.patch(`/alert-rules/${id}`, data),
+  delete: (id: string) => api.delete(`/alert-rules/${id}`),
+};

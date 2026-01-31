@@ -182,6 +182,11 @@
   gap: var(--space-md);
 }
 
+.desktopNotifications {
+  display: flex;
+  align-items: center;
+}
+
 .userInfo {
   display: flex;
   align-items: center;
@@ -311,6 +316,10 @@
     margin-left: 0;
     padding: var(--space-lg);
     padding-top: calc(60px + var(--space-lg));
+  }
+
+  .desktopNotifications {
+    display: none;
   }
 }
 

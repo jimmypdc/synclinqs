@@ -218,7 +218,7 @@ export function Dashboard() {
                     borderRadius: '8px',
                     padding: '12px',
                   }}
-                  formatter={(value: number) => [formatCurrency(value), '']}
+                  formatter={(value) => [formatCurrency(value as number), '']}
                 />
                 <Area
                   type="monotone"

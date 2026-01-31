@@ -14,16 +14,25 @@ import {
   X,
   Moon,
   Sun,
+  GitMerge,
+  AlertCircle,
+  CheckSquare,
+  Clock,
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useConfirm } from '../contexts/ConfirmContext';
 import { useTheme } from '../contexts/ThemeContext';
+import { NotificationBell } from './NotificationBell';
 import styles from './Layout.module.css';
 
 const navItems = [
   { to: '/', icon: LayoutDashboard, label: 'Dashboard' },
   { to: '/employees', icon: Users, label: 'Employees' },
   { to: '/contributions', icon: DollarSign, label: 'Contributions' },
+  { to: '/mappings', icon: GitMerge, label: 'Mappings' },
+  { to: '/reconciliation', icon: CheckSquare, label: 'Reconciliation' },
+  { to: '/errors', icon: AlertCircle, label: 'Errors' },
+  { to: '/jobs', icon: Clock, label: 'Jobs' },
   { to: '/integrations', icon: Activity, label: 'Integrations' },
   { to: '/settings', icon: Settings, label: 'Settings' },
 ];
@@ -71,7 +80,7 @@ export function Layout() {
           </div>
           <span className={styles.logoText}>SyncLinqs</span>
         </div>
-        <div className={styles.mobileHeaderSpacer} />
+        <NotificationBell />
       </header>
 
       {/* Mobile overlay */}
@@ -141,6 +150,9 @@ export function Layout() {
               </span>
               <span className={styles.userOrg}>{user?.organization?.name}</span>
             </div>
+          </div>
+          <div className={styles.desktopNotifications}>
+            <NotificationBell />
           </div>
           <button
             onClick={toggleTheme}

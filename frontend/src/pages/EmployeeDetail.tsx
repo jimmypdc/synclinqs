@@ -18,18 +18,6 @@ import {
 import { employeesApi, contributionsApi, electionsApi } from '../lib/api';
 import styles from './EmployeeDetail.module.css';
 
-interface Employee {
-  id: string;
-  employeeNumber: string;
-  firstName: string;
-  lastName: string;
-  email: string | null;
-  ssnLast4: string;
-  hireDate: string;
-  terminationDate: string | null;
-  status: string;
-  planId: string;
-}
 
 interface Contribution {
   id: string;

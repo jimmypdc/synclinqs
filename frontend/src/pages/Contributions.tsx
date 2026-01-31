@@ -27,8 +27,14 @@ interface Contribution {
   employerNonMatch: number;
   loanRepayment: number;
   status: string;
+  processedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
   employee?: {
+    id?: string;
     employeeNumber: string;
+    firstName?: string;
+    lastName?: string;
   };
 }
 

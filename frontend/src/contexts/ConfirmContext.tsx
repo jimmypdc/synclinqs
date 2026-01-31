@@ -1,6 +1,6 @@
-import { createContext, useContext, useState, useCallback, ReactNode } from 'react';
+import { createContext, useContext, useState, useCallback, type ReactNode } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { AlertTriangle, Trash2, AlertCircle, Info } from 'lucide-react';
+import { AlertTriangle, Trash2, Info } from 'lucide-react';
 import styles from './Confirm.module.css';
 
 type ConfirmVariant = 'danger' | 'warning' | 'info';

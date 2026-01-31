@@ -11,6 +11,11 @@ import { Dashboard } from './pages/Dashboard';
 import { Employees } from './pages/Employees';
 import { EmployeeDetail } from './pages/EmployeeDetail';
 import { Contributions } from './pages/Contributions';
+import { Mappings } from './pages/Mappings';
+import { MappingDetail } from './pages/MappingDetail';
+import { Reconciliation } from './pages/Reconciliation';
+import { ErrorQueue } from './pages/ErrorQueue';
+import { Jobs } from './pages/Jobs';
 import { Integrations } from './pages/Integrations';
 import { Settings } from './pages/Settings';
 
@@ -92,6 +97,11 @@ function AppRoutes() {
         <Route path="employees" element={<Employees />} />
         <Route path="employees/:id" element={<EmployeeDetail />} />
         <Route path="contributions" element={<Contributions />} />
+        <Route path="mappings" element={<Mappings />} />
+        <Route path="mappings/:id" element={<MappingDetail />} />
+        <Route path="reconciliation" element={<Reconciliation />} />
+        <Route path="errors" element={<ErrorQueue />} />
+        <Route path="jobs" element={<Jobs />} />
         <Route path="integrations" element={<Integrations />} />
         <Route path="settings" element={<Settings />} />
       </Route>

@@ -25,7 +25,7 @@ interface Contribution {
   createdAt: string;
   updatedAt: string;
   employee?: {
-    id: string;
+    id?: string;
     employeeNumber: string;
     firstName?: string;
     lastName?: string;
