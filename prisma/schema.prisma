@@ -40,6 +40,16 @@ model Organization {
   teams              Team[]
   idempotencyRecords IdempotencyRecord[]
   auditLogs          AuditLog[]          @relation("OrganizationAuditLogs")
+  mappingConfigurations MappingConfiguration[]
+  validationRules    ValidationRule[]
+  errorQueueItems    ErrorQueueItem[]
+  // Phase 3 relations
+  reconciliationReports ReconciliationReport[]
+  notifications         Notification[]
+  alertRules            AlertRule[]
+  webhookDeliveries     WebhookDelivery[]
+  syncJobs              SyncJob[]
+  deduplicationRecords  DeduplicationRecord[]
 
   @@index([slug])
   @@index([subscriptionStatus])
@@ -84,6 +94,15 @@ model User {
   auditLogs      AuditLog[]   @relation("UserAuditLogs")
   sentInvitations Invitation[]
   teamMemberships TeamMember[]
+  // Phase 3 relations
+  reconciledReports            ReconciliationReport[] @relation("ReconciledByUser")
+  resolvedReconciliationItems  ReconciliationItem[]   @relation("ResolvedReconciliationItems")
+  notifications                Notification[]         @relation("UserNotifications")
+  notificationPreferences      NotificationPreference[]
+  alertRulesCreated            AlertRule[]            @relation("AlertRulesCreated")
+  syncJobsCreated              SyncJob[]              @relation("SyncJobsCreated")
+  jobExecutionsTriggered       JobExecution[]         @relation("JobExecutionsTriggered")
+  deduplicationResolutions     DeduplicationRecord[]  @relation("DeduplicationResolutions")
 
   @@index([organizationId])
   @@map("users")
@@ -195,6 +214,8 @@ model Employee {
   contributions     Contribution[]
   deferralElections DeferralElection[]
   loans             Loan[]
+  // Phase 3 relations
+  reconciliationItems ReconciliationItem[]
 
   @@unique([organizationId, employeeNumber])
   @@index([organizationId])
@@ -238,6 +259,8 @@ model Contribution {
   // Relations
   employee Employee @relation(fields: [employeeId], references: [id])
   plan     Plan @relation(fields: [planId], references: [id])
+  // Phase 3 relations
+  reconciliationItems ReconciliationItem[]
 
   @@index([employeeId])
   @@index([planId])
@@ -352,6 +375,8 @@ model Integration {
   // Relations
   organization Organization @relation(fields: [organizationId], references: [id])
   fileUploads  FileUpload[]
+  // Phase 3 relations
+  syncJobs     SyncJob[]
 
   @@index([organizationId])
   @@map("integrations")
@@ -391,6 +416,7 @@ model FileUpload {
 
   // Relations
   integration Integration @relation(fields: [integrationId], references: [id])
+  mappingExecutionLogs MappingExecutionLog[]
 
   @@index([integrationId])
   @@index([status])
@@ -489,4 +515,664 @@ model IdempotencyRecord {
   @@unique([organizationId, idempotencyKey])
   @@index([expiresAt])
   @@map("idempotency_records")
+}
+
+// ============================================
+// MAPPING SYSTEM TABLES
+// ============================================
+
+// Field definitions for all supported systems
+model FieldDefinition {
+  id             String        @id @default(uuid()) @db.Uuid
+  systemName     String        @map("system_name") @db.VarChar(100)
+  fieldName      String        @map("field_name") @db.VarChar(255)
+  displayName    String        @map("display_name") @db.VarChar(255)
+  dataType       FieldDataType @map("data_type")
+  formatPattern  String?       @map("format_pattern") @db.VarChar(255)
+  isRequired     Boolean       @default(false) @map("is_required")
+  isPii          Boolean       @default(false) @map("is_pii")
+  validationRules Json?        @map("validation_rules") @db.JsonB
+  description    String?       @db.Text
+  exampleValue   String?       @map("example_value") @db.Text
+  createdAt      DateTime      @default(now()) @map("created_at")
+  updatedAt      DateTime      @updatedAt @map("updated_at")
+
+  @@unique([systemName, fieldName])
+  @@index([systemName])
+  @@index([isPii])
+  @@map("field_definitions")
+}
+
+enum FieldDataType {
+  STRING
+  NUMBER
+  DATE
+  BOOLEAN
+  ARRAY
+  OBJECT
+}
+
+// Pre-built mapping templates (e.g., ADP -> Fidelity)
+model MappingTemplate {
+  id                String      @id @default(uuid()) @db.Uuid
+  name              String      @db.VarChar(255)
+  description       String?     @db.Text
+  sourceSystem      String      @map("source_system") @db.VarChar(100)
+  destinationSystem String      @map("destination_system") @db.VarChar(100)
+  mappingType       MappingType @map("mapping_type")
+  templateRules     Json        @map("template_rules") @db.JsonB
+  usageCount        Int         @default(0) @map("usage_count")
+  isVerified        Boolean     @default(false) @map("is_verified")
+  createdAt         DateTime    @default(now()) @map("created_at")
+  updatedAt         DateTime    @updatedAt @map("updated_at")
+
+  // Relations
+  mappingConfigurations MappingConfiguration[]
+
+  @@unique([sourceSystem, destinationSystem, mappingType])
+  @@index([sourceSystem, destinationSystem])
+  @@map("mapping_templates")
+}
+
+enum MappingType {
+  CONTRIBUTION
+  EMPLOYEE
+  ELECTION
+  LOAN
+}
+
+// Organization-specific mapping configurations
+model MappingConfiguration {
+  id                String      @id @default(uuid()) @db.Uuid
+  organizationId    String      @map("organization_id") @db.Uuid
+  name              String      @db.VarChar(255)
+  sourceSystem      String      @map("source_system") @db.VarChar(100)
+  destinationSystem String      @map("destination_system") @db.VarChar(100)
+  mappingType       MappingType @map("mapping_type")
+  mappingRules      Json        @map("mapping_rules") @db.JsonB
+  isActive          Boolean     @default(true) @map("is_active")
+  templateId        String?     @map("template_id") @db.Uuid
+  version           Int         @default(1)
+  createdBy         String?     @map("created_by") @db.Uuid
+  updatedBy         String?     @map("updated_by") @db.Uuid
+  createdAt         DateTime    @default(now()) @map("created_at")
+  updatedAt         DateTime    @updatedAt @map("updated_at")
+  deletedAt         DateTime?   @map("deleted_at")
+
+  // Relations
+  organization  Organization      @relation(fields: [organizationId], references: [id])
+  template      MappingTemplate?  @relation(fields: [templateId], references: [id])
+  executionLogs MappingExecutionLog[]
+  // Phase 3 relations
+  syncJobs      SyncJob[]
+
+  @@index([organizationId, isActive])
+  @@index([sourceSystem, destinationSystem])
+  @@map("mapping_configurations")
+}
+
+// Reusable transformation functions
+model TransformationFunction {
+  id               String                     @id @default(uuid()) @db.Uuid
+  name             String                     @unique @db.VarChar(255)
+  displayName      String                     @map("display_name") @db.VarChar(255)
+  description      String?                    @db.Text
+  functionType     TransformationFunctionType @map("function_type")
+  inputType        FieldDataType              @map("input_type")
+  outputType       FieldDataType              @map("output_type")
+  functionCode     String                     @map("function_code") @db.Text
+  testCases        Json?                      @map("test_cases") @db.JsonB
+  isSystemFunction Boolean                    @default(false) @map("is_system_function")
+  createdAt        DateTime                   @default(now()) @map("created_at")
+  updatedAt        DateTime                   @updatedAt @map("updated_at")
+
+  @@index([functionType])
+  @@map("transformation_functions")
+}
+
+enum TransformationFunctionType {
+  STRING
+  NUMERIC
+  DATE
+  LOOKUP
+  CONDITIONAL
+  COMPOSITE
+}
+
+// Track mapping execution performance
+model MappingExecutionLog {
+  id                 String               @id @default(uuid()) @db.Uuid
+  mappingConfigId    String               @map("mapping_config_id") @db.Uuid
+  fileUploadId       String?              @map("file_upload_id") @db.Uuid
+  executionStart     DateTime             @map("execution_start")
+  executionEnd       DateTime?            @map("execution_end")
+  recordsProcessed   Int                  @default(0) @map("records_processed")
+  recordsSuccessful  Int                  @default(0) @map("records_successful")
+  recordsFailed      Int                  @default(0) @map("records_failed")
+  errorSummary       Json?                @map("error_summary") @db.JsonB
+  sampleErrors       Json?                @map("sample_errors") @db.JsonB
+  performanceMetrics Json?                @map("performance_metrics") @db.JsonB
+  createdAt          DateTime             @default(now()) @map("created_at")
+
+  // Relations
+  mappingConfig MappingConfiguration @relation(fields: [mappingConfigId], references: [id])
+  fileUpload    FileUpload?          @relation(fields: [fileUploadId], references: [id])
+
+  @@index([mappingConfigId])
+  @@index([executionStart])
+  @@map("mapping_execution_logs")
+}
+
+// Business rules for mapped data validation
+model ValidationRule {
+  id             String             @id @default(uuid()) @db.Uuid
+  organizationId String?            @map("organization_id") @db.Uuid
+  name           String             @db.VarChar(255)
+  ruleType       ValidationRuleType @map("rule_type")
+  appliesTo      String             @map("applies_to") @db.VarChar(100)
+  ruleLogic      Json               @map("rule_logic") @db.JsonB
+  errorMessage   String             @map("error_message") @db.Text
+  severity       ValidationSeverity @default(ERROR)
+  isActive       Boolean            @default(true) @map("is_active")
+  createdAt      DateTime           @default(now()) @map("created_at")
+  updatedAt      DateTime           @updatedAt @map("updated_at")
+
+  // Relations
+  organization Organization? @relation(fields: [organizationId], references: [id])
+
+  @@index([ruleType])
+  @@index([isActive])
+  @@index([organizationId])
+  @@map("validation_rules")
+}
+
+enum ValidationRuleType {
+  IRS_LIMIT
+  FORMAT
+  BUSINESS_LOGIC
+  REQUIRED_FIELD
+  RANGE
+  PATTERN
+}
+
+enum ValidationSeverity {
+  ERROR
+  WARNING
+  INFO
+}
+
+// ============================================
+// ERROR QUEUE TABLES
+// ============================================
+
+// Failed records awaiting retry or manual intervention
+model ErrorQueueItem {
+  id                String           @id @default(uuid()) @db.Uuid
+  organizationId    String           @map("organization_id") @db.Uuid
+  errorType         ErrorType        @map("error_type")
+  severity          ErrorSeverity    @default(ERROR)
+  sourceSystem      String?          @map("source_system") @db.VarChar(100)
+  destinationSystem String?          @map("destination_system") @db.VarChar(100)
+  recordId          String?          @map("record_id") @db.Uuid
+  recordType        String?          @map("record_type") @db.VarChar(100)
+  errorData         Json             @map("error_data") @db.JsonB
+  errorMessage      String           @map("error_message") @db.Text
+  errorStack        String?          @map("error_stack") @db.Text
+  errorCode         String?          @map("error_code") @db.VarChar(100)
+  retryCount        Int              @default(0) @map("retry_count")
+  maxRetries        Int              @default(3) @map("max_retries")
+  nextRetryAt       DateTime?        @map("next_retry_at")
+  status            ErrorQueueStatus @default(PENDING)
+  resolutionNotes   String?          @map("resolution_notes") @db.Text
+  resolvedBy        String?          @map("resolved_by") @db.Uuid
+  resolvedAt        DateTime?        @map("resolved_at")
+  context           Json?            @db.JsonB
+  createdAt         DateTime         @default(now()) @map("created_at")
+  updatedAt         DateTime         @updatedAt @map("updated_at")
+
+  // Relations
+  organization Organization @relation(fields: [organizationId], references: [id])
+  retryLogs    RetryLog[]
+
+  @@index([organizationId, status])
+  @@index([nextRetryAt])
+  @@index([errorType])
+  @@index([status, nextRetryAt])
+  @@map("error_queue")
+}
+
+enum ErrorType {
+  MAPPING_ERROR
+  VALIDATION_ERROR
+  API_ERROR
+  FILE_FORMAT_ERROR
+  NETWORK_ERROR
+  TIMEOUT_ERROR
+  AUTHENTICATION_ERROR
+  RATE_LIMIT_ERROR
+  DATA_INTEGRITY_ERROR
+  UNKNOWN_ERROR
+}
+
+enum ErrorSeverity {
+  CRITICAL
+  ERROR
+  WARNING
+}
+
+enum ErrorQueueStatus {
+  PENDING
+  RETRYING
+  RESOLVED
+  FAILED_PERMANENTLY
+  MANUAL_REVIEW
+  IGNORED
+}
+
+// Track retry attempts and outcomes
+model RetryLog {
+  id            String         @id @default(uuid()) @db.Uuid
+  errorQueueId  String         @map("error_queue_id") @db.Uuid
+  retryAttempt  Int            @map("retry_attempt")
+  retryAt       DateTime       @map("retry_at")
+  retryResult   RetryResult    @map("retry_result")
+  errorMessage  String?        @map("error_message") @db.Text
+  responseData  Json?          @map("response_data") @db.JsonB
+  durationMs    Int?           @map("duration_ms")
+  createdAt     DateTime       @default(now()) @map("created_at")
+
+  // Relations
+  errorQueueItem ErrorQueueItem @relation(fields: [errorQueueId], references: [id], onDelete: Cascade)
+
+  @@index([errorQueueId])
+  @@index([retryAt])
+  @@map("retry_logs")
+}
+
+enum RetryResult {
+  SUCCESS
+  FAILED
+  TRANSIENT_ERROR
+  PERMANENT_ERROR
+}
+
+// ============================================
+// PHASE 3: RECONCILIATION TABLES
+// ============================================
+
+model ReconciliationReport {
+  id                          String               @id @default(uuid()) @db.Uuid
+  organizationId              String               @map("organization_id") @db.Uuid
+  reconciliationDate          DateTime             @map("reconciliation_date") @db.Date
+  sourceSystem                String               @map("source_system") @db.VarChar(100)
+  destinationSystem           String               @map("destination_system") @db.VarChar(100)
+  reconciliationType          MappingType          @map("reconciliation_type")
+
+  totalRecords                Int                  @map("total_records")
+  matchedRecords              Int                  @default(0) @map("matched_records")
+  unmatchedSourceRecords      Int                  @default(0) @map("unmatched_source_records")
+  unmatchedDestinationRecords Int                  @default(0) @map("unmatched_destination_records")
+  amountDiscrepancies         Int                  @default(0) @map("amount_discrepancies")
+
+  totalSourceAmount           BigInt?              @map("total_source_amount")
+  totalDestinationAmount      BigInt?              @map("total_destination_amount")
+  varianceAmount              BigInt?              @map("variance_amount")
+
+  status                      ReconciliationStatus @default(PENDING)
+  reconciledBy                String?              @map("reconciled_by") @db.Uuid
+  reconciledAt                DateTime?            @map("reconciled_at")
+  notes                       String?              @db.Text
+  metadata                    Json?                @db.JsonB
+
+  createdAt                   DateTime             @default(now()) @map("created_at")
+  updatedAt                   DateTime             @updatedAt @map("updated_at")
+
+  // Relations
+  organization                Organization         @relation(fields: [organizationId], references: [id])
+  reconciledByUser            User?                @relation("ReconciledByUser", fields: [reconciledBy], references: [id])
+  items                       ReconciliationItem[]
+
+  @@unique([organizationId, reconciliationDate, sourceSystem, destinationSystem, reconciliationType])
+  @@index([organizationId, reconciliationDate])
+  @@index([status])
+  @@map("reconciliation_reports")
+}
+
+enum ReconciliationStatus {
+  PENDING
+  IN_PROGRESS
+  RECONCILED
+  DISCREPANCIES_FOUND
+  FAILED
+}
+
+model ReconciliationItem {
+  id                     String                          @id @default(uuid()) @db.Uuid
+  reconciliationReportId String                          @map("reconciliation_report_id") @db.Uuid
+  employeeId             String?                         @map("employee_id") @db.Uuid
+  contributionId         String?                         @map("contribution_id") @db.Uuid
+
+  matchStatus            ReconciliationMatchStatus       @map("match_status")
+  sourceRecord           Json?                           @map("source_record") @db.JsonB
+  destinationRecord      Json?                           @map("destination_record") @db.JsonB
+  sourceAmount           BigInt?                         @map("source_amount")
+  destinationAmount      BigInt?                         @map("destination_amount")
+  varianceAmount         BigInt?                         @map("variance_amount")
+
+  discrepancyReason      String?                         @map("discrepancy_reason") @db.Text
+  resolutionAction       ReconciliationResolutionAction? @map("resolution_action")
+  resolutionNotes        String?                         @map("resolution_notes") @db.Text
+  resolvedBy             String?                         @map("resolved_by") @db.Uuid
+  resolvedAt             DateTime?                       @map("resolved_at")
+
+  createdAt              DateTime                        @default(now()) @map("created_at")
+
+  // Relations
+  reconciliationReport   ReconciliationReport            @relation(fields: [reconciliationReportId], references: [id], onDelete: Cascade)
+  employee               Employee?                       @relation(fields: [employeeId], references: [id])
+  contribution           Contribution?                   @relation(fields: [contributionId], references: [id])
+  resolvedByUser         User?                           @relation("ResolvedReconciliationItems", fields: [resolvedBy], references: [id])
+
+  @@index([reconciliationReportId])
+  @@index([matchStatus])
+  @@index([employeeId])
+  @@map("reconciliation_items")
+}
+
+enum ReconciliationMatchStatus {
+  MATCHED
+  SOURCE_ONLY
+  DESTINATION_ONLY
+  AMOUNT_MISMATCH
+  DATA_MISMATCH
+}
+
+enum ReconciliationResolutionAction {
+  AUTO_CORRECTED
+  MANUAL_REVIEW
+  IGNORED
+  ADJUSTED
+}
+
+// ============================================
+// PHASE 3: NOTIFICATION TABLES
+// ============================================
+
+model Notification {
+  id               String               @id @default(uuid()) @db.Uuid
+  organizationId   String               @map("organization_id") @db.Uuid
+  userId           String?              @map("user_id") @db.Uuid
+
+  notificationType NotificationType     @map("notification_type")
+  severity         NotificationSeverity @default(INFO)
+  title            String               @db.VarChar(255)
+  message          String               @db.Text
+  actionUrl        String?              @map("action_url") @db.VarChar(500)
+  metadata         Json?                @db.JsonB
+
+  isRead           Boolean              @default(false) @map("is_read")
+  readAt           DateTime?            @map("read_at")
+
+  createdAt        DateTime             @default(now()) @map("created_at")
+
+  // Relations
+  organization     Organization         @relation(fields: [organizationId], references: [id])
+  user             User?                @relation("UserNotifications", fields: [userId], references: [id])
+  webhookDeliveries WebhookDelivery[]
+
+  @@index([userId, isRead])
+  @@index([organizationId, createdAt])
+  @@index([notificationType])
+  @@map("notifications")
+}
+
+enum NotificationType {
+  SYNC_COMPLETED
+  SYNC_FAILED
+  RECONCILIATION_COMPLETED
+  RECONCILIATION_DISCREPANCIES
+  ERROR_THRESHOLD_EXCEEDED
+  JOB_COMPLETED
+  JOB_FAILED
+  FILE_UPLOAD_COMPLETED
+  FILE_UPLOAD_FAILED
+  CONTRIBUTION_VALIDATION_ERROR
+  SYSTEM_ALERT
+  USER_INVITATION
+}
+
+enum NotificationSeverity {
+  CRITICAL
+  HIGH
+  MEDIUM
+  LOW
+  INFO
+  SUCCESS
+}
+
+model NotificationPreference {
+  id               String              @id @default(uuid()) @db.Uuid
+  userId           String              @map("user_id") @db.Uuid
+  channel          NotificationChannel
+  notificationType NotificationType    @map("notification_type")
+  isEnabled        Boolean             @default(true) @map("is_enabled")
+  settings         Json?               @db.JsonB
+
+  createdAt        DateTime            @default(now()) @map("created_at")
+  updatedAt        DateTime            @updatedAt @map("updated_at")
+
+  // Relations
+  user             User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, channel, notificationType])
+  @@index([userId])
+  @@map("notification_preferences")
+}
+
+enum NotificationChannel {
+  IN_APP
+  EMAIL
+  SLACK
+  WEBHOOK
+}
+
+model AlertRule {
+  id              String               @id @default(uuid()) @db.Uuid
+  organizationId  String               @map("organization_id") @db.Uuid
+  name            String               @db.VarChar(255)
+  description     String?              @db.Text
+  ruleType        AlertRuleType        @map("rule_type")
+  condition       Json                 @db.JsonB
+  severity        NotificationSeverity @default(MEDIUM)
+  recipients      Json                 @db.JsonB
+  channels        NotificationChannel[]
+  isActive        Boolean              @default(true) @map("is_active")
+  cooldownMinutes Int                  @default(60) @map("cooldown_minutes")
+  lastTriggeredAt DateTime?            @map("last_triggered_at")
+
+  createdBy       String?              @map("created_by") @db.Uuid
+  createdAt       DateTime             @default(now()) @map("created_at")
+  updatedAt       DateTime             @updatedAt @map("updated_at")
+
+  // Relations
+  organization    Organization         @relation(fields: [organizationId], references: [id])
+  creator         User?                @relation("AlertRulesCreated", fields: [createdBy], references: [id])
+
+  @@index([organizationId, isActive])
+  @@index([ruleType])
+  @@map("alert_rules")
+}
+
+enum AlertRuleType {
+  ERROR_RATE
+  RECONCILIATION_VARIANCE
+  SYNC_FAILURE
+  API_LATENCY
+  QUEUE_DEPTH
+  CONTRIBUTION_LIMIT_APPROACH
+}
+
+model WebhookDelivery {
+  id             String       @id @default(uuid()) @db.Uuid
+  organizationId String       @map("organization_id") @db.Uuid
+  webhookUrl     String       @map("webhook_url") @db.VarChar(500)
+  notificationId String?      @map("notification_id") @db.Uuid
+
+  payload        Json         @db.JsonB
+  httpStatus     Int?         @map("http_status")
+  responseBody   String?      @map("response_body") @db.Text
+  errorMessage   String?      @map("error_message") @db.Text
+
+  deliveredAt    DateTime?    @map("delivered_at")
+  retryCount     Int          @default(0) @map("retry_count")
+  nextRetryAt    DateTime?    @map("next_retry_at")
+
+  createdAt      DateTime     @default(now()) @map("created_at")
+
+  // Relations
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  notification   Notification? @relation(fields: [notificationId], references: [id])
+
+  @@index([organizationId])
+  @@index([nextRetryAt])
+  @@map("webhook_deliveries")
+}
+
+// ============================================
+// PHASE 3: SCHEDULED JOBS TABLES
+// ============================================
+
+model SyncJob {
+  id                String       @id @default(uuid()) @db.Uuid
+  organizationId    String       @map("organization_id") @db.Uuid
+  name              String       @db.VarChar(255)
+  description       String?      @db.Text
+  jobType           SyncJobType  @map("job_type")
+  sourceSystem      String?      @map("source_system") @db.VarChar(100)
+  destinationSystem String?      @map("destination_system") @db.VarChar(100)
+  integrationId     String?      @map("integration_id") @db.Uuid
+  mappingConfigId   String?      @map("mapping_config_id") @db.Uuid
+
+  scheduleCron      String?      @map("schedule_cron") @db.VarChar(100)
+  timezone          String       @default("UTC") @db.VarChar(50)
+  isActive          Boolean      @default(true) @map("is_active")
+
+  lastRunAt         DateTime?    @map("last_run_at")
+  nextRunAt         DateTime?    @map("next_run_at")
+
+  configuration     Json?        @db.JsonB
+
+  createdBy         String?      @map("created_by") @db.Uuid
+  createdAt         DateTime     @default(now()) @map("created_at")
+  updatedAt         DateTime     @updatedAt @map("updated_at")
+  deletedAt         DateTime?    @map("deleted_at")
+
+  // Relations
+  organization      Organization          @relation(fields: [organizationId], references: [id])
+  integration       Integration?          @relation(fields: [integrationId], references: [id])
+  mappingConfig     MappingConfiguration? @relation(fields: [mappingConfigId], references: [id])
+  creator           User?                 @relation("SyncJobsCreated", fields: [createdBy], references: [id])
+  executions        JobExecution[]
+
+  @@index([organizationId])
+  @@index([nextRunAt])
+  @@index([isActive])
+  @@map("sync_jobs")
+}
+
+enum SyncJobType {
+  CONTRIBUTION_SYNC
+  EMPLOYEE_SYNC
+  ELECTION_SYNC
+  RECONCILIATION
+  FILE_EXPORT
+  CLEANUP
+  REPORT_GENERATION
+}
+
+model JobExecution {
+  id                 String             @id @default(uuid()) @db.Uuid
+  syncJobId          String             @map("sync_job_id") @db.Uuid
+  executionStart     DateTime           @default(now()) @map("execution_start")
+  executionEnd       DateTime?          @map("execution_end")
+  status             JobExecutionStatus @default(RUNNING)
+
+  recordsProcessed   Int                @default(0) @map("records_processed")
+  recordsSuccessful  Int                @default(0) @map("records_successful")
+  recordsFailed      Int                @default(0) @map("records_failed")
+
+  errorSummary       String?            @map("error_summary") @db.Text
+  errorDetails       Json?              @map("error_details") @db.JsonB
+  performanceMetrics Json?              @map("performance_metrics") @db.JsonB
+
+  triggeredBy        JobTriggerType     @default(SCHEDULED) @map("triggered_by")
+  triggeredByUserId  String?            @map("triggered_by_user_id") @db.Uuid
+
+  createdAt          DateTime           @default(now()) @map("created_at")
+
+  // Relations
+  syncJob            SyncJob            @relation(fields: [syncJobId], references: [id], onDelete: Cascade)
+  triggeredByUser    User?              @relation("JobExecutionsTriggered", fields: [triggeredByUserId], references: [id])
+
+  @@index([syncJobId])
+  @@index([status, executionStart])
+  @@index([executionStart])
+  @@map("job_executions")
+}
+
+enum JobExecutionStatus {
+  PENDING
+  RUNNING
+  COMPLETED
+  FAILED
+  PARTIAL
+  CANCELLED
+}
+
+enum JobTriggerType {
+  SCHEDULED
+  MANUAL
+  API
+  WEBHOOK
+  SYSTEM
+}
+
+// ============================================
+// PHASE 3: DEDUPLICATION TABLES
+// ============================================
+
+model DeduplicationRecord {
+  id                String              @id @default(uuid()) @db.Uuid
+  organizationId    String              @map("organization_id") @db.Uuid
+
+  originalRecordId  String              @map("original_record_id") @db.Uuid
+  duplicateRecordId String              @map("duplicate_record_id") @db.Uuid
+  recordType        String              @map("record_type") @db.VarChar(50)
+
+  matchScore        Float?              @map("match_score")
+  matchFields       Json                @map("match_fields") @db.JsonB
+
+  status            DeduplicationStatus @default(POTENTIAL_DUPLICATE)
+  resolvedBy        String?             @map("resolved_by") @db.Uuid
+  resolvedAt        DateTime?           @map("resolved_at")
+  resolutionNotes   String?             @map("resolution_notes") @db.Text
+
+  createdAt         DateTime            @default(now()) @map("created_at")
+  updatedAt         DateTime            @updatedAt @map("updated_at")
+
+  // Relations
+  organization      Organization        @relation(fields: [organizationId], references: [id])
+  resolvedByUser    User?               @relation("DeduplicationResolutions", fields: [resolvedBy], references: [id])
+
+  @@unique([organizationId, originalRecordId, duplicateRecordId, recordType])
+  @@index([organizationId, status])
+  @@index([recordType])
+  @@map("deduplication_records")
+}
+
+enum DeduplicationStatus {
+  POTENTIAL_DUPLICATE
+  CONFIRMED_DUPLICATE
+  NOT_DUPLICATE
+  MERGED
 }

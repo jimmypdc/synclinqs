@@ -2,11 +2,29 @@ import { Worker } from 'bullmq';
 import { getRedisConnection, closeRedisConnection } from './connection.js';
 import { closeAllQueues } from './queues.js';
 import { processJob, getProcessor } from './processors/index.js';
-import { SyncJobData, SyncJobResult, IntegrationType, QUEUE_CONFIGS, QueueName } from './types.js';
+import { processRetryJob } from './processors/retry.processor.js';
+import {
+  startRetryScheduler,
+  stopRetryScheduler,
+  closeRetryQueue,
+} from './scheduled/retry-scheduler.js';
+import {
+  SyncJobData,
+  SyncJobResult,
+  RetryJobData,
+  RetryJobResult,
+  IntegrationType,
+  QUEUE_CONFIGS,
+  RETRY_QUEUE_CONFIG,
+  QueueName,
+} from './types.js';
 import { logger } from '../utils/logger.js';
+import { JobSchedulerService } from '../services/job-scheduler.service.js';
 
 const workers = new Map<QueueName, Worker<SyncJobData, SyncJobResult>>();
+let retryWorker: Worker<RetryJobData, RetryJobResult> | null = null;
 let isShuttingDown = false;
+let jobSchedulerService: JobSchedulerService | null = null;
 
 export async function startWorkers(): Promise<void> {
   logger.info('Starting workers');
@@ -89,7 +107,66 @@ export async function startWorkers(): Promise<void> {
     });
   }
 
-  logger.info('All workers started', { count: workers.size });
+  // Start retry worker
+  try {
+    retryWorker = new Worker<RetryJobData, RetryJobResult>(
+      RETRY_QUEUE_CONFIG.name,
+      processRetryJob,
+      {
+        connection,
+        concurrency: RETRY_QUEUE_CONFIG.concurrency,
+        lockDuration: RETRY_QUEUE_CONFIG.timeoutMs,
+        stalledInterval: Math.floor(RETRY_QUEUE_CONFIG.timeoutMs / 2),
+      }
+    );
+
+    retryWorker.on('completed', (job, result) => {
+      logger.info('Retry job completed', {
+        jobId: job.id,
+        errorId: result.errorId,
+        success: result.success,
+      });
+    });
+
+    retryWorker.on('failed', (job, error) => {
+      logger.error('Retry job failed', {
+        jobId: job?.id,
+        error: error.message,
+      });
+    });
+
+    retryWorker.on('error', (error) => {
+      logger.error('Retry worker error', {
+        error: error.message,
+      });
+    });
+
+    await retryWorker.waitUntilReady();
+    logger.info('Retry worker started', {
+      queueName: RETRY_QUEUE_CONFIG.name,
+      concurrency: RETRY_QUEUE_CONFIG.concurrency,
+    });
+  } catch (err) {
+    const error = err as Error;
+    logger.error('Failed to create retry worker', { error: error.message });
+    throw err;
+  }
+
+  // Start retry scheduler
+  startRetryScheduler();
+
+  // Start job scheduler (Phase 3)
+  try {
+    jobSchedulerService = new JobSchedulerService();
+    await jobSchedulerService.initialize();
+    logger.info('Job scheduler initialized');
+  } catch (err) {
+    const error = err as Error;
+    logger.error('Failed to initialize job scheduler', { error: error.message });
+    // Non-fatal - continue without job scheduler
+  }
+
+  logger.info('All workers started', { count: workers.size + 1 });
 }
 
 export async function stopWorkers(): Promise<void> {
@@ -101,7 +178,21 @@ export async function stopWorkers(): Promise<void> {
   isShuttingDown = true;
   logger.info('Stopping workers');
 
-  // Close all workers first
+  // Stop job scheduler (Phase 3)
+  if (jobSchedulerService) {
+    try {
+      await jobSchedulerService.shutdown();
+      jobSchedulerService = null;
+      logger.info('Job scheduler stopped');
+    } catch (error) {
+      logger.error('Error stopping job scheduler', { error });
+    }
+  }
+
+  // Stop retry scheduler first
+  stopRetryScheduler();
+
+  // Close all sync workers
   const closeWorkerPromises = Array.from(workers.values()).map(async (worker) => {
     try {
       await worker.close();
@@ -112,10 +203,25 @@ export async function stopWorkers(): Promise<void> {
 
   await Promise.all(closeWorkerPromises);
   workers.clear();
+
+  // Close retry worker
+  if (retryWorker) {
+    try {
+      await retryWorker.close();
+      retryWorker = null;
+      logger.info('Retry worker stopped');
+    } catch (error) {
+      logger.error('Error closing retry worker', { error });
+    }
+  }
+
   logger.info('All workers stopped');
 
   // Close queues
   await closeAllQueues();
+
+  // Close retry queue
+  await closeRetryQueue();
 
   // Close Redis connection
   await closeRedisConnection();

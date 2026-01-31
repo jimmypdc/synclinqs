@@ -98,7 +98,16 @@ export interface WebhookConfig extends IntegrationConfig {
   events?: string[];
 }
 
-export type QueueName = 'sync-sftp' | 'sync-rest-api' | 'sync-soap' | 'sync-webhook';
+export type QueueName =
+  | 'sync-sftp'
+  | 'sync-rest-api'
+  | 'sync-soap'
+  | 'sync-webhook'
+  | 'error-retry'
+  | 'scheduled-jobs'
+  | 'reconciliation'
+  | 'notifications'
+  | 'webhook-delivery';
 
 export interface QueueConfig {
   name: QueueName;
@@ -107,6 +116,29 @@ export interface QueueConfig {
   maxRetries: number;
   backoffBaseMs: number;
 }
+
+// Retry queue types
+export interface RetryJobData {
+  errorId: string;
+  organizationId: string;
+  errorType: string;
+  retryAttempt: number;
+}
+
+export interface RetryJobResult {
+  success: boolean;
+  errorId: string;
+  errorMessage?: string;
+  completedAt: string;
+}
+
+export const RETRY_QUEUE_CONFIG: QueueConfig = {
+  name: 'error-retry',
+  concurrency: 5,
+  timeoutMs: 5 * 60 * 1000, // 5 minutes
+  maxRetries: 0, // We handle retries in the error queue service
+  backoffBaseMs: 0,
+};
 
 export const QUEUE_CONFIGS: Record<IntegrationType, QueueConfig> = {
   SFTP: {
@@ -142,3 +174,122 @@ export const QUEUE_CONFIGS: Record<IntegrationType, QueueConfig> = {
 export function getQueueNameForType(type: IntegrationType): QueueName {
   return QUEUE_CONFIGS[type].name;
 }
+
+// ============================================
+// Phase 3: Scheduled Jobs Queue Types
+// ============================================
+
+export interface ScheduledJobData {
+  syncJobId: string;
+  organizationId: string;
+  jobType: string;
+  triggeredBy: 'SCHEDULED' | 'MANUAL' | 'API' | 'WEBHOOK' | 'SYSTEM';
+  triggeredByUserId?: string;
+}
+
+export interface ScheduledJobResult {
+  success: boolean;
+  syncJobId: string;
+  recordsProcessed: number;
+  recordsSuccessful: number;
+  recordsFailed: number;
+  errorMessage?: string;
+  completedAt: string;
+}
+
+export const SCHEDULED_JOBS_QUEUE_CONFIG: QueueConfig = {
+  name: 'scheduled-jobs',
+  concurrency: 5,
+  timeoutMs: 30 * 60 * 1000, // 30 minutes
+  maxRetries: 2,
+  backoffBaseMs: 60 * 1000, // 60 seconds
+};
+
+// ============================================
+// Phase 3: Reconciliation Queue Types
+// ============================================
+
+export interface ReconciliationJobData {
+  organizationId: string;
+  sourceSystem: string;
+  destinationSystem: string;
+  reconciliationType: string;
+  reconciliationDate: string;
+  triggeredBy: string;
+}
+
+export interface ReconciliationJobResult {
+  success: boolean;
+  reportId: string;
+  totalRecords: number;
+  matchedRecords: number;
+  discrepancies: number;
+  completedAt: string;
+}
+
+export const RECONCILIATION_QUEUE_CONFIG: QueueConfig = {
+  name: 'reconciliation',
+  concurrency: 2,
+  timeoutMs: 60 * 60 * 1000, // 60 minutes
+  maxRetries: 1,
+  backoffBaseMs: 5 * 60 * 1000, // 5 minutes
+};
+
+// ============================================
+// Phase 3: Notification Queue Types
+// ============================================
+
+export interface NotificationJobData {
+  organizationId: string;
+  userId?: string;
+  notificationType: string;
+  severity: string;
+  title: string;
+  message: string;
+  actionUrl?: string;
+  metadata?: Record<string, unknown>;
+  channels: string[];
+}
+
+export interface NotificationJobResult {
+  success: boolean;
+  notificationId: string;
+  channelResults: Record<string, boolean>;
+  completedAt: string;
+}
+
+export const NOTIFICATION_QUEUE_CONFIG: QueueConfig = {
+  name: 'notifications',
+  concurrency: 10,
+  timeoutMs: 1 * 60 * 1000, // 1 minute
+  maxRetries: 3,
+  backoffBaseMs: 5 * 1000, // 5 seconds
+};
+
+// ============================================
+// Phase 3: Webhook Delivery Queue Types
+// ============================================
+
+export interface WebhookDeliveryJobData {
+  deliveryId: string;
+  organizationId: string;
+  webhookUrl: string;
+  payload: Record<string, unknown>;
+  retryAttempt: number;
+}
+
+export interface WebhookDeliveryJobResult {
+  success: boolean;
+  deliveryId: string;
+  httpStatus?: number;
+  errorMessage?: string;
+  completedAt: string;
+}
+
+export const WEBHOOK_DELIVERY_QUEUE_CONFIG: QueueConfig = {
+  name: 'webhook-delivery',
+  concurrency: 10,
+  timeoutMs: 30 * 1000, // 30 seconds
+  maxRetries: 5,
+  backoffBaseMs: 10 * 1000, // 10 seconds
+};

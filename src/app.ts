@@ -7,7 +7,11 @@ import { config } from './config/index.js';
 import { logger } from './utils/logger.js';
 import { errorHandler } from './api/middleware/errorHandler.js';
 import { requestLogger } from './api/middleware/requestLogger.js';
+import { metricsMiddleware } from './api/middleware/metrics.js';
 import { apiRouter } from './api/routes/index.js';
+import healthRoutes from './api/routes/health.routes.js';
+import metricsRoutes from './api/routes/metrics.routes.js';
+import docsRoutes from './api/routes/docs.routes.js';
 
 export function createApp(): Express {
   const app = express();
@@ -38,10 +42,17 @@ export function createApp(): Express {
   // Request logging
   app.use(requestLogger);
 
-  // Health check
-  app.get('/health', (_req: Request, res: Response) => {
-    res.json({ status: 'healthy', timestamp: new Date().toISOString() });
-  });
+  // Metrics collection
+  app.use(metricsMiddleware);
+
+  // Health check routes
+  app.use('/health', healthRoutes);
+
+  // Metrics endpoint (Prometheus format)
+  app.use('/metrics', metricsRoutes);
+
+  // API documentation (Swagger UI) - development only
+  app.use('/api/docs', docsRoutes);
 
   // API routes
   app.use(`/api/${config.apiVersion}`, apiRouter);

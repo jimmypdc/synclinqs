@@ -1,0 +1,38 @@
+# SyncLinqs Terraform Variables Example
+# Copy this file to terraform.tfvars and fill in the values
+
+# AWS Configuration
+aws_region  = "us-east-1"
+environment = "staging" # or "production"
+
+# VPC Configuration
+vpc_cidr = "10.0.0.0/16"
+
+# Database Configuration
+db_instance_class    = "db.t3.medium"     # Use db.r6g.large for production
+db_allocated_storage = 20                  # GB, increase for production
+db_username          = "synclinqs"
+db_password          = "CHANGE_ME_SECURE_PASSWORD"  # Use a strong password!
+
+# Redis Configuration
+redis_node_type       = "cache.t3.micro"  # Use cache.r6g.large for production
+redis_num_cache_nodes = 1                  # Use 2+ for production HA
+
+# ECS Configuration
+ecs_cpu           = 512    # Use 1024+ for production
+ecs_memory        = 1024   # Use 2048+ for production
+ecs_desired_count = 2      # Minimum 2 for HA
+container_image   = "ghcr.io/your-org/synclinqs:latest"
+
+# Application Secrets
+jwt_secret     = "CHANGE_ME_GENERATE_SECURE_32_CHAR_SECRET"
+encryption_key = "CHANGE_ME_GENERATE_SECURE_32_CHAR_KEY"
+
+# Domain Configuration (optional)
+# Leave empty to use ALB DNS name directly
+domain_name     = ""
+certificate_arn = ""
+
+# Example for production with custom domain:
+# domain_name     = "api.synclinqs.com"
+# certificate_arn = "arn:aws:acm:us-east-1:123456789:certificate/abc-123"
